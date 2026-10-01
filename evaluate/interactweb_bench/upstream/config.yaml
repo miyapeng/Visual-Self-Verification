@@ -1,0 +1,16 @@
+# Data path configuration
+# data_path: "/your_path/InteractWeb-Bench/data/test_mini.jsonl"
+#docker:
+# data_path: "/app/data/test_mini.jsonl"
+data_path: "/app/data/test_mini.jsonl"
+# output_dir: "/your_path/store/experiment_results"
+#docker:
+output_dir: "/app/experiment_results"
+# Model selection configuration
+models:
+
+  builder_model: "Qwen3.5-9B"
+  visual_copilot_model: "Qwen3.5-9B"
+
+  webvoyager_model: "gpt-5-mini"
+  user_model: "deepseek-v3.2"

@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: openhands-workspace
+Version: 1.11.1
+Summary: OpenHands Workspace - Docker and container-based workspace implementations
+Project-URL: Source, https://github.com/OpenHands/software-agent-sdk
+Project-URL: Homepage, https://github.com/OpenHands/software-agent-sdk
+Project-URL: Documentation, https://docs.openhands.dev/sdk
+Project-URL: Bug Tracker, https://github.com/OpenHands/software-agent-sdk/issues
+Requires-Python: >=3.12
+Requires-Dist: openhands-sdk
+Requires-Dist: openhands-agent-server
+Requires-Dist: pydantic>=2.11.7

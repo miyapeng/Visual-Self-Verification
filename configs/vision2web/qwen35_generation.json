@@ -1,0 +1,37 @@
+{
+  "schema": "multimodalcode-vision2web-generation-1",
+  "run_label": "qwen35-9b-openhands-official-v2",
+  "dataset": {
+    "name": "zai-org/Vision2Web",
+    "revision": "8f03299d92b9bd852e93852d0c21e8a4848ab661",
+    "instances": 193
+  },
+  "runtime": "runs/vision2web_generation/runtime-20260830-native-v2",
+  "runtime_tree_sha256": "80a1c489013be4aeafdfb4d907d25b8a3df119b3419b922e20e7c6b7674117b2",
+  "state": "runs/vision2web_generation/qwen35-9b-openhands-official-v2/controller_state.json",
+  "image": "registry.pjlab.org.cn/ccr-t-llm-frontier/vision2web:official-577f939",
+  "image_digest": "sha256:3d2fa9b0999a1fbb10c9d4ccc653c7d5560a713668d6c18c80d0d06e36e43056",
+  "benchmark_commit": "577f9397b3db8fc6d828adde254a830caa65d515",
+  "model": {
+    "name": "Qwen3.5-9B",
+    "server_run": "qwen35-9b-swe-262k",
+    "proxy_model": "litellm_proxy/Qwen3.5-9B",
+    "max_input_tokens": 262144,
+    "max_output_tokens": 8192
+  },
+  "scaffold": {
+    "name": "OpenHands",
+    "profile": "official",
+    "packages": {
+      "openhands": "1.16.0",
+      "openhands-sdk": "1.21.0"
+    },
+    "extensions_revision": "openhands-native-browser-toolset-v1",
+    "max_retries": 2,
+    "timeout_seconds_per_attempt": 7200
+  },
+  "evaluation": {
+    "enabled": false,
+    "reason": "generation-only; official functional and visual evaluation is deferred"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "policy": "guarded_frontier",
+  "records": [
+    {
+      "record_id": "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:repeated_navigation",
+      "kind": "verification_residual",
+      "text": "[Verification residual: repeated_navigation]\nStatus: fail\nExpected: Inventory reveals Raw Materials Management, and the subsequent Production click reveals Production Schedule.\nObserved: TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Inventory', exact: true }).first()\n\nFirst failing action: 1\nResidual: Expected Inventory reveals Raw Materials Management, and the subsequent Production click reveals Production Schedule.; observed TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Inventory', exact: true }).first()\n\nCurrent-version local console errors: [none]\nConsole evidence: []\n\nAccessibility evidence: - heading \"2800\" [level=3]\n- paragraph: Total Cups in Stock\n- heading \"1175\" [level=3]\n- paragraph: Raw Materials Available\n- heading \"$29\" [level=3]\n- paragraph: Total Sales Revenue\n- heading \"2\" [level=3]\n- paragraph: Active Customers\n- heading \"📊 Quick Overview\" [level=2]\n- heading \"Production Today\" [level=4]\n- paragraph: \"0\"\n- heading \"Orders Pending\" [level=4]\n- paragraph: \"1\"\n- heading \"Low Stock Items\" [level=4]\n- paragraph: \"0\"\n- heading \"Monthly Revenue\" [level=4]\n- paragraph: $29\n- heading \"🚀 Recent Activity\" [level=2]\n- text: 💰\n- paragraph: New sale recorded for Café Delight\n- text: 10:30 AM 🏭\n- paragraph: Production run completed\n- text: 9:15 AM",
+      "code_version": "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5",
+      "sequence": 8,
+      "checklist_id": "repeated_navigation",
+      "status": "fail",
+      "image_path": "/data/miyapeng/mmcode/MultimodalCode/runs/research/active_visual_verification/interactweb-execution-rooted-qwen35-001/execution_rooted/guarded_frontier/executions/interactweb-000045-navigation-repair/d8f5f967-5bb4-4862-8848-f387180dd44f/states/0002-click.png",
+      "image_pixels": 1228800,
+      "is_first_failure": true,
+      "is_regression": false,
+      "metadata": {
+        "execution_id": "d8f5f967-5bb4-4862-8848-f387180dd44f",
+        "first_failing_action": 1,
+        "has_global_error_certificate": false,
+        "is_newly_passed": false,
+        "oracle_predecessors": [
+          "runtime_integrity"
+        ]
+      }
+    }
+  ],
+  "omitted_ids": [
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:0",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:1",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:2",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:3",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:4",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:5",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:action:6",
+    "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5:runtime_integrity"
+  ],
+  "estimated_text_tokens": 353,
+  "image_count": 1,
+  "image_pixels": 1228800,
+  "metadata": {
+    "selection_code_version": "8b71638fed31a7bcbd09f9571f332e814a354a27821b4131aa457cf1fed2cba5"
+  }
+}

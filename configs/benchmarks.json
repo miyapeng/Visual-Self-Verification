@@ -1,0 +1,71 @@
+{
+  "benchmarks": {
+    "design2code": {
+      "enabled": true,
+      "adapter": "ui2code_jsonl",
+      "data_file": "../data/design2code/data.jsonl",
+      "image_root": "../data/design2code",
+      "output_format": "html",
+      "extra_prompt": "Match the screenshot faithfully, including all visible text and page dimensions.",
+      "render": {
+        "full_page": true,
+        "wait_ms": 1000
+      },
+      "evaluator": {
+        "type": "design2code_official",
+        "workers": 1,
+        "upstream_root": "../evaluate/design2code",
+        "rick_path": "../evaluate/design2code/Design2Code/prompting/rick.jpg"
+      }
+    },
+    "flame-react-eval": {
+      "enabled": true,
+      "adapter": "flame_official",
+      "data_file": "../data/flame-react-eval/testDataEN80.json",
+      "image_root": "../data/flame-react-eval",
+      "output_format": "flame",
+      "render": {
+        "full_page": false,
+        "width": 800,
+        "height": 600,
+        "wait_ms": 3000
+      },
+      "evaluator": {
+        "type": "flame",
+        "thresholds": [0.7, 0.8, 0.85, 0.9, 0.95, 0.99]
+      }
+    },
+    "web2code": {
+      "enabled": true,
+      "adapter": "ui2code_jsonl",
+      "data_file": "../data/web2code/web2code_image_eval.jsonl",
+      "image_root": "../data/web2code",
+      "output_format": "html",
+      "render": {
+        "full_page": false,
+        "width": 1920,
+        "height": 1080,
+        "wait_ms": 5000
+      },
+      "evaluator": {
+        "type": "web2code_vlm"
+      }
+    },
+    "ui2code-real": {
+      "enabled": true,
+      "adapter": "ui2code_jsonl",
+      "data_file": "../data/ui2code-real/data.jsonl",
+      "image_root": "../data/ui2code-real",
+      "output_format": "html",
+      "render": {
+        "full_page": false,
+        "width": 1920,
+        "height": 1080,
+        "wait_ms": 1500
+      },
+      "evaluator": {
+        "type": "ui2code_vlm"
+      }
+    }
+  }
+}

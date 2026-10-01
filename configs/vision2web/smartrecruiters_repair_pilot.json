@@ -1,0 +1,21 @@
+{
+  "case_id": "frontend/smartrecruiters",
+  "base_before_event": 238,
+  "boundaries": [245, 269, 308],
+  "edit_ordinals": [238, 240, 243, 245, 260, 262, 269, 308],
+  "routes": ["/", "/pricing", "/about-us", "/winston-ai", "/customers", "/careers"],
+  "functional_checks": [
+    {"ordinal": 299, "route": "/careers", "name": "careers_filter_search"},
+    {"ordinal": 302, "route": "/customers", "name": "customers_filter_load_more"},
+    {"ordinal": 305, "route": "/", "name": "navigation"},
+    {"ordinal": 310, "route": "/winston-ai", "name": "faq_carousel"},
+    {"ordinal": 313, "route": "/", "name": "mobile_menu", "viewport": {"width": 390, "height": 844}}
+  ],
+  "targets": [
+    {"id": "reveal", "before": "V0", "after": "V1", "route": "/", "reference": "homepage.jpg", "policy_event": 237, "expectation": "The homepage metrics and Winston content must be visible in a full-page capture, consistent with the prototype. Assess this symptom only; do not require reproducing a claimed JavaScript cause."},
+    {"id": "gartner_attempt1", "before": "V0", "after": "V1", "route": "/", "reference": "homepage.jpg", "policy_event": 237, "expectation": "The Gartner area must show a recognizable Gartner wordmark as required by the prototype, not an empty white rectangle. Merely hiding the required logo is not a successful repair."},
+    {"id": "gartner_attempt2", "before": "V1", "after": "V2", "route": "/", "reference": "homepage.jpg", "policy_event": 259, "expectation": "The Gartner area must show a recognizable Gartner wordmark as required by the prototype, not an empty white rectangle. Assess recognizable content and visible fidelity; do not infer success just because code replaced an image."},
+    {"id": "pricing_logo", "before": "V1", "after": "V2", "route": "/pricing", "reference": "pricing.jpg", "policy_event": 267, "expectation": "The Deloitte customer logo on Pricing must be visible and recognizable, consistent with the prototype. Confirm that the before screenshot actually demonstrates a problem; changing an asset alone is not evidence of a defect."},
+    {"id": "testimonial_box", "before": "V2", "after": "V3", "route": "/", "reference": "homepage.jpg", "policy_event": 307, "expectation": "Remove the unintended solid white box above the testimonial while retaining the content required by the prototype. If deleting it removes a required brandmark rather than restoring it, do not call this a fully successful repair."}
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "multimodalcode-vision2web-capacity-probe-1",
+  "purpose": "Deterministic infrastructure feasibility test; not agent-autonomy evidence",
+  "case_id": "frontend/academy_govloop",
+  "level": 2,
+  "source_workspace": "runs/vision2web_generation/qwen35-9b-claude-code-pilot20-natural-v1/agents/Qwen3.5-9B/vision2web/claude_code/official/frontend__academy_govloop/workspace",
+  "private_workflow": "data/vision2web/extracted/frontend/academy_govloop/workflow.json",
+  "workflow_selector": {
+    "group_index": 0,
+    "content_index": 4,
+    "expected_objective": "Verify that submitting a search query using the top search bar successfully navigates to the search results page and displays matching results."
+  },
+  "semantic_scenario": {
+    "name": "academy-search-leadership",
+    "reset": {
+      "url": "http://127.0.0.1:3000/",
+      "viewport_width": 1280,
+      "viewport_height": 800,
+      "clear_storage": true
+    },
+    "actions": [
+      {
+        "type": "fill",
+        "target": {
+          "role": "textbox",
+          "name": "Search...",
+          "exact": true
+        },
+        "value": "leadership"
+      },
+      {
+        "type": "press",
+        "key": "Enter"
+      }
+    ]
+  },
+  "evidence_assertion": {
+    "type": "url_and_text",
+    "url_contains": "/search/leadership",
+    "text_contains": "Search Results: leadership"
+  },
+  "manual_repair": {
+    "relative_path": "govloop-academy/app.js",
+    "description": "Remove the JavaScript parse blocker, then wire the existing top search box to render matching videos and update the SPA route; the frozen implementation exposes the controls and search helper but attaches no submit handler.",
+    "replacements": [
+      {
+        "old": "{title\":\"Testing Advantage\",\"desc\":\"Automation efficiency...\"}",
+        "new": "{title:\"Testing Advantage\",desc:\"Automation efficiency...\"}"
+      },
+      {
+        "old": "  function init() {\n    renderHome();\n  }",
+        "new": "  function renderSearchResults(query) {\n    var normalized = query.trim();\n    if (!normalized) return;\n    var results = getSearchResults(normalized);\n    var items = results.map(function(video) {\n      return '<article class=\"video-item\"><div class=\"video-content\"><a href=\"#\" class=\"video-title\">' + video.title + '</a><p class=\"video-description\">' + (video.desc || video.description || '') + '</p></div></article>';\n    }).join('');\n    history.pushState({query: normalized}, '', '/search/' + encodeURIComponent(normalized));\n    document.getElementById('mainContent').innerHTML = '<div class=\"page-container\"><header class=\"page-header\"><h1 class=\"page-title\">Search Results: ' + normalized + '</h1><p class=\"page-subtitle\">' + results.length + ' matching videos</p></header><div class=\"video-list-container\"><div class=\"video-list\">' + items + '</div></div></div>';\n  }\n\n  function submitTopSearch() {\n    renderSearchResults(document.getElementById('searchInput').value);\n  }\n\n  function init() {\n    renderHome();\n    document.getElementById('searchBtn').addEventListener('click', submitTopSearch);\n    document.getElementById('searchInput').addEventListener('keydown', function(event) {\n      if (event.key === 'Enter') {\n        event.preventDefault();\n        submitTopSearch();\n      }\n    });\n  }"
+      }
+    ]
+  },
+  "information_boundary": {
+    "workflow_visible_to_agent_or_model": false,
+    "workflow_used_only_by_probe_controller": true,
+    "browser_makes_verdict": false,
+    "repair_is_manual_and_scripted": true
+  }
+}

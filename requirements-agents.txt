@@ -1,0 +1,10 @@
+# Minimal runtime subset used from scaffolds/mini_swe_agent.
+# We intentionally do not install mini-swe-agent's dataset/TUI extras, and
+# OpenHands transitive dependencies are supplied by the pinned Vision2Web task
+# image while its first-party Python source is loaded from this repository.
+litellm==1.96.2
+pydantic==2.13.4
+tenacity==9.1.4
+rich==15.0.0
+platformdirs==4.11.2
+python-dotenv==1.2.2

@@ -1,0 +1,21 @@
+{
+  "run_json": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/trajectory/run.json",
+  "agent_task_root": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/agent_visible",
+  "scorer_task_root": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/scorer_task_root",
+  "judge_config": "configs/vision2web/vsv_scoring.json",
+  "audit_notes": [
+    "Protocol v2: joint episode coverage, earlier visual evidence, configurable repair records. Do not relabel historical v1 scores as results of this protocol.",
+    "Recorded image receipt is not a reconstruction of model context compaction or proof of visual causality.",
+    "The five repair targets remain development annotations. The reveal target measures unscrolled full-page appearance, not natural scroll behavior."
+  ],
+  "stages": {
+    "test": {"profile": "qwen38_27b_local"},
+    "visual_judgment": {"profile": "qwen38_27b_visual"},
+    "safe_repair": {
+      "adapter": "configured_replay",
+      "fixture": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify",
+      "spec": "configs/vision2web/smartrecruiters_repair_v2.json",
+      "profile": "qwen38_27b_visual"
+    }
+  }
+}

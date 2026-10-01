@@ -1,0 +1,9 @@
+{
+  "name": "OpenHands/extensions",
+  "repository": "https://github.com/OpenHands/extensions",
+  "ref": "main",
+  "commit": "75924ab2dd9b1efe7eecff6aaa8034cca099354e",
+  "snapshot_date_utc": "2026-08-16",
+  "purpose": "Frozen public skills catalog loaded by the official OpenHands CLI",
+  "runtime_policy": "Seed ~/.openhands/cache/skills/public-skills and use the frozen local repository as origin; do not fetch mutable GitHub state during benchmark cases."
+}

@@ -1,0 +1,66 @@
+{
+  "planner": "manual-from-webcompass-video-trajectory",
+  "plan_version": 1,
+  "metadata": {
+    "source": "WebCompass/test_output/video/Claude-Opus-4.5/22",
+    "protocol": "one-shot frozen action plan reconstructed from released video states"
+  },
+  "checklist": [
+    {
+      "id": "initial_products",
+      "description": "The product application initializes and renders all products.",
+      "expected": "Fifteen product cards are rendered and the count reads Showing 15 products.",
+      "weight": 2,
+      "category": "Runnability",
+      "source": "released video frame 0001"
+    },
+    {
+      "id": "price_filter",
+      "description": "The Under $50 quick filter updates the product grid.",
+      "expected": "Selecting Under $50 leaves exactly two matching products.",
+      "weight": 2,
+      "category": "Spec Implementation",
+      "source": "released interaction trajectory and product data"
+    },
+    {
+      "id": "brand_filter",
+      "description": "The Chanel checkbox filters the product grid by brand.",
+      "expected": "Selecting Chanel leaves exactly three matching products.",
+      "weight": 2,
+      "category": "Spec Implementation",
+      "source": "released interaction trajectory and product data"
+    },
+    {
+      "id": "reset_filters",
+      "description": "Reset Filters restores the complete unfiltered state.",
+      "expected": "Reset restores Showing 15 products after each filter operation.",
+      "weight": 1,
+      "category": "Spec Implementation",
+      "source": "released video frame 0030"
+    }
+  ],
+  "actions": [
+    {"type": "screenshot", "checklist_id": "initial_products", "note": "Capture initialized state"},
+    {"type": "assert_visible", "selector": ".product-card", "expected": "true", "checklist_id": "initial_products", "timeout_ms": 2000},
+    {"type": "assert_text", "selector": "#productCount", "expected": "Showing 15 products", "match": "equals", "checklist_id": "initial_products", "timeout_ms": 2000},
+
+    {"type": "click", "selector": ".quick-select__btn[data-min='0'][data-max='50']", "checklist_id": "price_filter", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 150, "checklist_id": "price_filter"},
+    {"type": "assert_text", "selector": "#productCount", "expected": "Showing 2 products", "match": "equals", "checklist_id": "price_filter", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "price_filter", "note": "Capture price-filtered state"},
+
+    {"type": "click", "selector": "#resetFilters", "checklist_id": "reset_filters", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 100, "checklist_id": "reset_filters"},
+    {"type": "assert_text", "selector": "#productCount", "expected": "Showing 15 products", "match": "equals", "checklist_id": "reset_filters", "timeout_ms": 2000},
+
+    {"type": "click", "selector": "label.brand-filter:has-text('Chanel')", "checklist_id": "brand_filter", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 100, "checklist_id": "brand_filter"},
+    {"type": "assert_text", "selector": "#productCount", "expected": "Showing 3 products", "match": "equals", "checklist_id": "brand_filter", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "brand_filter", "note": "Capture brand-filtered state"},
+
+    {"type": "click", "selector": "#resetFilters", "checklist_id": "reset_filters", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 100, "checklist_id": "reset_filters"},
+    {"type": "assert_text", "selector": "#productCount", "expected": "Showing 15 products", "match": "equals", "checklist_id": "reset_filters", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "reset_filters", "note": "Capture reset state"}
+  ]
+}

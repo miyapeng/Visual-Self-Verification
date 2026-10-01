@@ -1,0 +1,71 @@
+{
+  "schema": "multimodalcode-vsv-judge-config-1",
+  "primary_stage_profiles": {
+    "workflow_alignment": "qwen35_35b_local",
+    "visual_judgment": "qwen38_27b_visual",
+    "repair_scope": "qwen35_35b_local",
+    "safe_repair_visual": "qwen3_vl_30b_local"
+  },
+  "audit_default_profile": "claude_opus_4_8_api",
+  "audit_for_claude_opus_profile": "gpt4o_api",
+  "profiles": {
+    "qwen38_27b_visual": {
+      "provider": "openai-compatible",
+      "model": "Qwen3.8-27B",
+      "base_url": "${VSV_PRIMARY_BASE_URL}",
+      "api_key_env": "VSV_PRIMARY_API_KEY",
+      "max_tokens": 8192,
+      "timeout": 240,
+      "retries": 0,
+      "json_mode": true,
+      "label_images": true,
+      "chat_template_kwargs": {"enable_thinking": true, "reasoning_effort": "low"}
+    },
+    "qwen38_27b_local": {
+      "provider": "openai-compatible",
+      "model": "Qwen3.8-27B",
+      "base_url": "${VSV_PRIMARY_BASE_URL}",
+      "api_key_env": "VSV_PRIMARY_API_KEY",
+      "max_tokens": 8192,
+      "timeout": 240,
+      "retries": 0,
+      "chat_template_kwargs": {"enable_thinking": true, "reasoning_effort": "low"}
+    },
+    "qwen35_35b_local": {
+      "provider": "openai-compatible",
+      "model": "Qwen3.5-35B-A3B",
+      "base_url": "${VSV_PRIMARY_BASE_URL}",
+      "api_key_env": "VSV_PRIMARY_API_KEY",
+      "max_tokens": 1400,
+      "timeout": 600,
+      "retries": 2
+    },
+    "qwen3_vl_30b_local": {
+      "provider": "openai-compatible",
+      "model": "Qwen3-VL-30B-A3B-Instruct",
+      "base_url": "${VSV_VISUAL_BASE_URL}",
+      "api_key_env": "VSV_ROBUSTNESS_API_KEY",
+      "max_tokens": 1400,
+      "timeout": 600,
+      "retries": 2
+    },
+    "claude_opus_4_8_api": {
+      "provider": "anthropic-compatible",
+      "model": "claude-opus-4-8",
+      "base_url": "${VSV_CLOSED_BASE_URL}",
+      "api_key_env": "LLM_RELAY_API_KEY",
+      "max_tokens": 1400,
+      "timeout": 600,
+      "retries": 2
+    },
+    "gpt4o_api": {
+      "provider": "openai-compatible",
+      "model": "gpt-4o",
+      "base_url": "${VSV_CLOSED_BASE_URL}",
+      "api_key_env": "LLM_RELAY_API_KEY",
+      "max_tokens": 1400,
+      "timeout": 600,
+      "retries": 2
+    }
+  }
+}

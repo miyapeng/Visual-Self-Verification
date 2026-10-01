@@ -1,0 +1,121 @@
+{
+  "schema": "multimodalcode-vision2web-guided-vsv-experiment-4",
+  "browser_interface_revision": "openhands-native-browser-toolset-v1",
+  "benchmark": {
+    "name": "zai-org/Vision2Web",
+    "dataset_revision": "8f03299d92b9bd852e93852d0c21e8a4848ab661",
+    "evaluator_commit": "577f9397b3db8fc6d828adde254a830caa65d515",
+    "active_levels": {
+      "Level 1": "webpage",
+      "Level 2": "frontend",
+      "Level 3": "website"
+    },
+    "total_instances": 193
+  },
+  "official_prompt_sha256": {
+    "Level 1": "0ec0f6a4465ad81e14fc67290ed2c1a077fe150715d0b818ef113db7c9159b34",
+    "Level 2": "b8c72e84c9efd85cba8ada58c0a527e69c771776f0a2a35296bede0317da3c9f",
+    "Level 3": "dc748cb63d8ba62da48b53c759244c9ca473c7f2d1465f03b2556c96d5c95177"
+  },
+  "runtime_image": {
+    "reference": "registry.pjlab.org.cn/ccr-t-llm-frontier/vision2web:official-577f939",
+    "digest": "sha256:3d2fa9b0999a1fbb10c9d4ccc653c7d5560a713668d6c18c80d0d06e36e43056",
+    "openhands_cli": "1.16.0",
+    "openhands_sdk": "1.21.0",
+    "browser_use": "0.11.13"
+  },
+  "conditions": [
+    {
+      "name": "official",
+      "task_prompt": "official-byte-identical",
+      "tools": "official OpenHands CLI tools; no registered native BrowserToolSet (the image still contains terminal-accessible playwright-cli)"
+    },
+    {
+      "name": "browser_enabled",
+      "task_prompt": "official-byte-identical",
+      "tools": "official tools plus the complete unmodified native OpenHands BrowserToolSet"
+    },
+    {
+      "name": "guided_vsv",
+      "task_prompt": "official plus the frozen detailed function-scoped visual self-verification procedure",
+      "tools": "identical to browser_enabled"
+    }
+  ],
+  "model": {
+    "name": "Qwen3.5-9B",
+    "path": "/data/miyapeng/model/Qwen3.5-9B",
+    "served_name": "Qwen3.5-9B",
+    "max_input_tokens": 262144,
+    "max_output_tokens": 8192,
+    "sampling": {
+      "temperature": null,
+      "top_p": null,
+      "seed": null,
+      "provenance": "unchanged OpenHands 1.16.0 / SDK 1.21.0 provider defaults; identical in every condition"
+    }
+  },
+  "budget": {
+    "timeout_seconds_per_attempt": 7200,
+    "max_retries": 2
+  },
+  "worker_network": {
+    "environment_policy": "no-env plus explicit HTTP(S) proxy only",
+    "outbound_proxy_required": true,
+    "browser_proxy_policy": "unchanged native OpenHands BrowserToolSet behavior; loopback access is provided by the task container network configuration",
+    "reason": "Level 2/3 generated applications may need npm dependencies before they can deploy"
+  },
+  "selection": {
+    "rule": "Within each level, sort case IDs by sha256('vision2web-self-verify-v1\\0' + case_id) and take the requested count. No workflow or evaluator field is used.",
+    "seed": "vision2web-self-verify-v1",
+    "smoke": [
+      "webpage/classic-clashes",
+      "frontend/forum_vectorworks",
+      "website/permanent"
+    ],
+    "fixed_experiment": {
+      "Level 1": [
+        "webpage/brother",
+        "webpage/kashiwabara",
+        "webpage/windpower_monthly",
+        "webpage/fairfax-county",
+        "webpage/wikipedia",
+        "webpage/imdb"
+      ],
+      "Level 2": [
+        "frontend/academy_govloop",
+        "frontend/newsday_co_tt",
+        "frontend/mojarto",
+        "frontend/community_hpe",
+        "frontend/ewif",
+        "frontend/copenhagenmarathon"
+      ],
+      "Level 3": [
+        "website/sykescottages",
+        "website/act",
+        "website/scenario"
+      ]
+    }
+  },
+  "information_boundary": {
+    "agent_visible": [
+      "official task prompt",
+      "PRD or public prompt.txt when supplied by the benchmark",
+      "prototype images",
+      "public resources",
+      "its own source and browser observations"
+    ],
+    "post_trajectory_only": [
+      "workflow.json",
+      "official functional evaluator",
+      "official visual evaluator"
+    ]
+  },
+  "history": {
+    "pre_refactor_run_label": "qwen35-9b-openhands-selfverify-v1",
+    "legacy_mode_aliases": {
+      "tools": "browser_enabled",
+      "self_verify": "guided_vsv"
+    },
+    "status": "archived exploratory evidence used old names, a short cue, and in some runs a custom batch browser interface; never aggregate it with the native-ToolSet experiment-4"
+  }
+}

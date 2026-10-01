@@ -1,0 +1,12 @@
+{
+  "name": "InteractWeb-Bench",
+  "source_url": "https://github.com/AIforIP/InteractWeb-Bench",
+  "source_commit": "56040f368e9b41e770fc814d17a7c207c6be7bd9",
+  "snapshot_method": "git archive HEAD from a clean checkout",
+  "snapshot_date": "2026-08-16",
+  "upstream_file_count": 57,
+  "file_manifest": "UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "4eb7d2059f3162649079786a06ab637d499d4e92faf401e2625c83031f952fb4",
+  "license_declaration": "No standalone code or data license was present in the upstream GitHub repository.",
+  "local_worktree_changes_in_source_checkout": "excluded"
+}

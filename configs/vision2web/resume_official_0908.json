@@ -1,0 +1,19 @@
+{
+  "Qwen3.5-9B": {
+    "sources": ["qwen35-9b-claude-code-official-full-0904"],
+    "preserve_statuses": ["success"],
+    "run_label": "qwen35-9b-claude-code-official-resume-0908",
+    "server_run": "qwen35-9b-v2w-full-0904",
+    "max_active": 3
+  },
+  "Qwen3.8-27B": {
+    "sources": [
+      "qwen38-27b-claude-code-official-full-0904",
+      "qwen38-27b-claude-code-official-full-0904-v2"
+    ],
+    "preserve_statuses": ["success", "timeout"],
+    "run_label": "qwen38-27b-claude-code-official-resume-0908",
+    "server_run": "qwen38-27b-v2w-full-0904",
+    "max_active": 1
+  }
+}

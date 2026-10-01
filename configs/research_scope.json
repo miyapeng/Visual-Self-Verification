@@ -1,0 +1,41 @@
+{
+  "schema": "multimodalcode-research-scope-v1",
+  "decided_at": "2026-08-23",
+  "active_benchmarks": [
+    {
+      "id": "vision2web",
+      "scope": "level_1_level_2_and_level_3",
+      "role": "primary",
+      "claim_boundary": "self-verification across static webpage, interactive frontend, and full-stack development"
+    },
+    {
+      "id": "frontalk",
+      "scope": "official_benchmark",
+      "role": "complementary",
+      "claim_boundary": "multi-turn requirement evolution, regression detection, and preservation of previously implemented functionality"
+    },
+    {
+      "id": "swe_bench_multimodal",
+      "scope": "multimodal_instances",
+      "role": "secondary_transfer",
+      "claim_boundary": "visual-evidence understanding and code repair; no proactive-failure-discovery claim without newly executed visual observations"
+    }
+  ],
+  "implementation_priority": [
+    "vision2web",
+    "frontalk",
+    "swe_bench_multimodal"
+  ],
+  "archived_benchmarks": [
+    {
+      "id": "interactweb_bench",
+      "status": "archived_out_of_scope",
+      "reason": "It primarily measures requirement clarification and persona-driven user alignment, which confounds the paper's same-policy visual self-verification question.",
+      "preserve_existing_artifacts": true,
+      "include_in_active_aggregates": false,
+      "resume_automatically": false,
+      "reintroduction_requires_explicit_user_reversal": true
+    }
+  ],
+  "replacement_benchmark_policy": "Do not add a replacement benchmark without explicit user instruction."
+}

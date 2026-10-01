@@ -1,0 +1,12 @@
+{
+  "name": "Vision2Web",
+  "source_url": "https://github.com/zai-org/Vision2Web",
+  "source_commit": "577f9397b3db8fc6d828adde254a830caa65d515",
+  "snapshot_method": "git archive HEAD",
+  "snapshot_date": "2026-08-13",
+  "upstream_file_count": 43,
+  "file_manifest": "UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "43a192567719569aa2ec55640546eb6580c8fad49380c7c958363193c54c8f02",
+  "license_declaration": "CC-BY-NC-SA-4.0 for academic research, declared in the upstream README",
+  "license_note": "upstream setup.py has an inconsistent MIT classifier; no standalone license file is present"
+}

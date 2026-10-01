@@ -1,0 +1,49 @@
+{
+  "planner": "manual-from-webcompass-reference-states",
+  "plan_version": 1,
+  "metadata": {
+    "source": "WebCompass/test_output/image/1",
+    "protocol": "one-shot frozen action plan with deterministic Playwright replay"
+  },
+  "checklist": [
+    {
+      "id": "initial_state",
+      "description": "The initial fortune-cookie state is visible and actionable.",
+      "expected": "The cookie and the instruction to tap it are visible.",
+      "weight": 1,
+      "category": "Spec Implementation",
+      "source": "reference screenshot"
+    },
+    {
+      "id": "reveal_state",
+      "description": "Clicking the cookie reveals the complete fortune card.",
+      "expected": "The fortune card, Your Fortune title, quotation, and lucky numbers become visible.",
+      "weight": 2,
+      "category": "Spec Implementation",
+      "source": "reference screenshot"
+    },
+    {
+      "id": "reset_state",
+      "description": "The user can request another fortune.",
+      "expected": "Clicking Get Another Fortune returns to the clickable cookie state.",
+      "weight": 1,
+      "category": "Spec Implementation",
+      "source": "generated page affordance"
+    }
+  ],
+  "actions": [
+    {"type": "screenshot", "checklist_id": "initial_state", "note": "Capture initial state"},
+    {"type": "assert_visible", "selector": "#cookie-state", "expected": "true", "checklist_id": "initial_state", "timeout_ms": 2000},
+    {"type": "assert_text", "selector": "#cookie-state", "expected": "Tap the cookie to crack it open!", "checklist_id": "initial_state", "timeout_ms": 2000},
+    {"type": "hover", "selector": "#cookie", "checklist_id": "reveal_state", "timeout_ms": 2000},
+    {"type": "click", "selector": "#cookie", "checklist_id": "reveal_state", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 600, "checklist_id": "reveal_state"},
+    {"type": "assert_visible", "selector": "#fortune-state", "expected": "true", "checklist_id": "reveal_state", "timeout_ms": 2000},
+    {"type": "assert_text", "selector": ".fortune-title", "expected": "Your Fortune", "checklist_id": "reveal_state", "timeout_ms": 2000},
+    {"type": "assert_visible", "selector": "#lucky-numbers", "expected": "true", "checklist_id": "reveal_state", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "reveal_state", "note": "Capture revealed state"},
+    {"type": "click", "selector": "#another-btn", "checklist_id": "reset_state", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 200, "checklist_id": "reset_state"},
+    {"type": "assert_visible", "selector": "#cookie-state", "expected": "true", "checklist_id": "reset_state", "timeout_ms": 2000}
+  ]
+}

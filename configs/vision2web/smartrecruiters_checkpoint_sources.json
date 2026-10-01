@@ -1,0 +1,18 @@
+{
+  "source_run_sha256": "b79e6b0600907598b04070ed7067891fede37a691a989a300c75e6171833bc2c",
+  "reconstruction": "runs/vsv_eval/smartrecruiters-full-0907/repair/versions/reconstruction.json",
+  "reconstruction_sha256": "866c53601bd1b0bc146e6baf9b267af841ef45d2115622f6f34aa1c41d482135",
+  "code_subdir": "app",
+  "public_mappings": {"app/resources": "resources"},
+  "launch": {
+    "command": ["node", "server.js"],
+    "cwd": "app",
+    "action_ordinal": 192,
+    "result_ordinal": 193
+  },
+  "checkpoints": [
+    {"version": "V1", "action_ordinal": 249, "reviewed_non_mutating_actions": [247]},
+    {"version": "V2", "action_ordinal": 272, "reviewed_non_mutating_actions": []},
+    {"version": "V3", "action_ordinal": 310, "reviewed_non_mutating_actions": []}
+  ]
+}

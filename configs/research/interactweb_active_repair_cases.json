@@ -1,0 +1,178 @@
+[
+  {
+    "case_id": "interactweb-000045-navigation-repair",
+    "task": "Repair the provided paper cup manufacturing system so that users can repeatedly navigate through its required inventory and production sections. Preserve the existing data, features, and requested light-goldenrod/olive-drab visual design. Do not modify verification artifacts.",
+    "program_path": "../../runs/native_benchmarks/qwen35-9b-interactweb-full-20260820/shards/shard-05/interactweb/Qwen3.5-9B/workspaces/000045_P-RAM",
+    "plan": {
+      "checklist": [
+        {
+          "id": "runtime_integrity",
+          "description": "The page loads without browser runtime, page, or network failures.",
+          "expected": "No browser console, page, or request errors.",
+          "weight": 1.0,
+          "category": "technical",
+          "source": "public task requirement"
+        },
+        {
+          "id": "repeated_navigation",
+          "description": "Users can navigate from the dashboard to Inventory and then Production using the visible navigation controls.",
+          "expected": "Inventory reveals Raw Materials Management, and the subsequent Production click reveals Production Schedule.",
+          "weight": 2.0,
+          "category": "functional",
+          "source": "public task requirement and original public interaction trace"
+        }
+      ],
+      "actions": [
+        {
+          "type": "assert_no_console_errors",
+          "checklist_id": "runtime_integrity"
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Inventory",
+          "checklist_id": "repeated_navigation",
+          "timeout_ms": 3000
+        },
+        {
+          "type": "wait",
+          "milliseconds": 100,
+          "checklist_id": "repeated_navigation"
+        },
+        {
+          "type": "assert_text",
+          "selector": "body",
+          "expected": "Raw Materials Management",
+          "checklist_id": "repeated_navigation",
+          "timeout_ms": 3000
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Production",
+          "checklist_id": "repeated_navigation",
+          "timeout_ms": 3000
+        },
+        {
+          "type": "wait",
+          "milliseconds": 100,
+          "checklist_id": "repeated_navigation"
+        },
+        {
+          "type": "assert_text",
+          "selector": "body",
+          "expected": "Production Schedule",
+          "checklist_id": "repeated_navigation",
+          "timeout_ms": 3000
+        }
+      ],
+      "planner": "frozen-public-requirement-plan",
+      "plan_version": 1,
+      "metadata": {
+        "viewport": {"width": 1280, "height": 960},
+        "web_runtime": {
+          "command": ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", "{port}"],
+          "entry_path": "/",
+          "startup_timeout": 45
+        }
+      }
+    },
+    "task_image_paths": [],
+    "metadata": {
+      "benchmark": "InteractWeb-Bench",
+      "upstream_case": "000045_P-RAM",
+      "experiment_role": "public-check counterfactual repair diagnostic",
+      "official_score": false,
+      "failure_provenance": "The original generator requested screenshot validation for /inventory, observed a timeout, and submitted; the frozen check is a direct executable test of the public inventory/production navigation requirement.",
+      "oracle_predecessors": {
+        "runtime_integrity": [],
+        "repeated_navigation": ["runtime_integrity"]
+      }
+    }
+  },
+  {
+    "case_id": "interactweb-000062-question-bank-repair",
+    "task": "Repair the provided DMV practice test so that choosing Traffic Signs opens a populated practice question bank. Preserve the simulated exam, error analysis, existing content, and requested black/bright-white visual design. Do not modify verification artifacts.",
+    "program_path": "../../runs/native_benchmarks/qwen35-9b-interactweb-full-20260820/shards/shard-07/interactweb/Qwen3.5-9B/workspaces/000062_P-CON",
+    "plan": {
+      "checklist": [
+        {
+          "id": "runtime_integrity",
+          "description": "The page loads without browser runtime, page, or network failures.",
+          "expected": "No browser console, page, or request errors.",
+          "weight": 1.0,
+          "category": "technical",
+          "source": "public task requirement"
+        },
+        {
+          "id": "question_bank_access",
+          "description": "Selecting Traffic Signs opens the populated practice question bank.",
+          "expected": "The question-bank view reports 5 Practice Questions and renders question items.",
+          "weight": 2.0,
+          "category": "functional",
+          "source": "public task requirement and original public interaction trace"
+        }
+      ],
+      "actions": [
+        {
+          "type": "assert_no_console_errors",
+          "checklist_id": "runtime_integrity"
+        },
+        {
+          "type": "click",
+          "role": "button",
+          "name": "Traffic Signs",
+          "checklist_id": "question_bank_access",
+          "timeout_ms": 3000
+        },
+        {
+          "type": "wait",
+          "milliseconds": 100,
+          "checklist_id": "question_bank_access"
+        },
+        {
+          "type": "assert_no_console_errors",
+          "checklist_id": "runtime_integrity",
+          "note": "Re-check runtime integrity after the category interaction."
+        },
+        {
+          "type": "assert_text",
+          "selector": "[data-testid='question-bank-title']",
+          "expected": "5 Practice Questions",
+          "match": "equals",
+          "checklist_id": "question_bank_access",
+          "timeout_ms": 3000
+        },
+        {
+          "type": "assert_visible",
+          "selector": "[data-testid='question-item']",
+          "expected": "true",
+          "checklist_id": "question_bank_access",
+          "timeout_ms": 3000
+        }
+      ],
+      "planner": "frozen-public-requirement-plan",
+      "plan_version": 2,
+      "metadata": {
+        "viewport": {"width": 1280, "height": 960},
+        "web_runtime": {
+          "command": ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", "{port}"],
+          "entry_path": "/",
+          "startup_timeout": 45
+        }
+      }
+    },
+    "task_image_paths": [],
+    "metadata": {
+      "benchmark": "InteractWeb-Bench",
+      "upstream_case": "000062_P-CON",
+      "experiment_role": "public-check counterfactual repair diagnostic",
+      "official_score": false,
+      "failure_provenance": "The original visual audit clicked Traffic Signs, observed that the question bank did not appear, labeled it a critical failure, and the generator then submitted without a patch.",
+      "oracle_predecessors": {
+        "runtime_integrity": [],
+        "question_bank_access": ["runtime_integrity"]
+      }
+    }
+  }
+]

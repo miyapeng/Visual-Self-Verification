@@ -1,0 +1,131 @@
+{
+  "schema": "multimodalcode-vision2web-visual-self-verification-pilot-1",
+  "benchmark_revision": "8f03299d92b9bd852e93852d0c21e8a4848ab661",
+  "evaluator_revision": "577f9397b3db8fc6d828adde254a830caa65d515",
+  "selection_policy": {
+    "total": 20,
+    "allocation": {"Level 1": 6, "Level 2": 8, "Level 3": 6},
+    "basis": "Reuse the previously frozen pilot where runnable, then add interaction-diverse cases. Selection uses task level and evaluator-private workflow structure only, never model scores.",
+    "frozen_before_condition_comparison": true
+  },
+  "cases": {
+    "Level 1": [
+      "webpage/classic-clashes",
+      "webpage/brother",
+      "webpage/kashiwabara",
+      "webpage/windpower_monthly",
+      "webpage/wikipedia",
+      "webpage/imdb"
+    ],
+    "Level 2": [
+      "frontend/academy_govloop",
+      "frontend/newsday_co_tt",
+      "frontend/mojarto",
+      "frontend/community_hpe",
+      "frontend/ewif",
+      "frontend/copenhagenmarathon",
+      "frontend/forum_vectorworks",
+      "frontend/smartrecruiters"
+    ],
+    "Level 3": [
+      "website/sykescottages",
+      "website/act",
+      "website/scenario",
+      "website/permanent",
+      "website/agendrix",
+      "website/cognitoforms"
+    ]
+  },
+  "trajectory_conditions": {
+    "openhands": [
+      {
+        "name": "official",
+        "prompt": "official Vision2Web prompt, unchanged",
+        "browser_affordance": "official OpenHands CLI; no registered native BrowserToolSet"
+      },
+      {
+        "name": "browser_enabled",
+        "prompt": "official Vision2Web prompt, unchanged",
+        "browser_affordance": "complete unmodified native OpenHands BrowserToolSet"
+      },
+      {
+        "name": "guided_vsv",
+        "prompt": "official Vision2Web prompt plus the frozen detailed function-scoped VSV procedure",
+        "browser_affordance": "identical to browser_enabled"
+      }
+    ],
+    "claude_code": [
+      {
+        "name": "official",
+        "prompt": "official Vision2Web prompt, unchanged",
+        "browser_affordance": "official image-installed playwright-cli Claude skill"
+      },
+      {
+        "name": "guided_vsv",
+        "prompt": "official Vision2Web prompt plus the frozen detailed function-scoped VSV procedure",
+        "browser_affordance": "identical to official"
+      }
+    ]
+  },
+  "checkpoint_protocol": {
+    "name": "checkpoint_verify",
+    "context": "fresh session over a hash-verified runnable intermediate workspace and original public task inputs",
+    "prompt": "prompts/vision2web/checkpoint_verify.txt",
+    "entrypoint": "scripts/vision2web/build_checkpoint_tasks.py",
+    "status": "active; four runtime-validated checkpoints from one task; cross-model inference not yet run"
+  },
+  "additional_diagnostic_protocols": [
+    {
+      "name": "verification_handoff",
+      "context": "separate session takes the entire verification attempt; no check/judge/repair role splitting",
+      "prompt": "prompts/vision2web/verification_handoff.txt",
+      "status": "optional analysis only; no automatic A-session resumption; no real A/B comparison yet"
+    }
+  ],
+  "archived_diagnostic_protocols": [
+    {
+      "name": "elicited_same_context_after_finish",
+      "context": "continue an archived official session at its first FinishAction",
+      "prompt": "prompts/vision2web/same_context_self_check.txt",
+      "status": "archived; not an active trajectory condition or current checkpoint entry point"
+    },
+    {
+      "name": "fresh_context_verify_only",
+      "context": "fresh session over a frozen generated code snapshot",
+      "prompt": "prompts/vision2web/fresh_context_verification_probe.txt",
+      "status": "archived verify-only probe; superseded by checkpoint_verify, which permits evidence-based repair"
+    }
+  ],
+  "archived_verification_capacity_probe": {
+    "source_run": "runs/vision2web_generation/qwen35-9b-openhands-official-v2",
+    "source_model": "Qwen3.5-9B",
+    "source_condition": "official",
+    "purpose": "Archived exploratory probe; it used the retired batch interface and is not part of the active native-OpenHands protocol.",
+    "plan_interface": "archived functional-objective episodes through browser_execute_plan; retained only to interpret pre-refactor capacity probes",
+    "max_scenarios": 8,
+    "max_actions_per_scenario": 12,
+    "workspace_edits_allowed": false
+  },
+  "information_boundary": {
+    "agent_visible": [
+      "public prompt or PRD",
+      "prototype images",
+      "public resources",
+      "frozen generated code",
+      "its own browser observations"
+    ],
+    "post_trajectory_only": [
+      "workflow.json",
+      "official functional evaluator",
+      "official visual evaluator"
+    ]
+  },
+  "tool_evidence": {
+    "openhands": "runs/vision2web_self_verify/probes/browser_interface_smoke_v5_viewport_r1.json",
+    "claude_code": "runs/vision2web_self_verify/end_to_end/tool_checks_v4/claude-png-context/result.json"
+  },
+  "tool_evidence_notes": {
+    "openhands": "Historical retired batch-interface smoke only; not evidence for the current unmodified native BrowserToolSet.",
+    "claude_code": "Historical PNG-context tool smoke; not evidence of spontaneous verification or of every later model/SDK configuration."
+  }
+}

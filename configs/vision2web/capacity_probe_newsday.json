@@ -1,0 +1,48 @@
+{
+  "schema": "multimodalcode-vision2web-capacity-probe-1",
+  "purpose": "Deterministic infrastructure feasibility test; not agent-autonomy evidence",
+  "case_id": "frontend/newsday_co_tt",
+  "level": 2,
+  "source_workspace": "data/vision2web/pilots/visual_self_verification_20/code_snapshots/frontend__newsday_co_tt",
+  "private_workflow": "data/vision2web/extracted/frontend/newsday_co_tt/workflow.json",
+  "workflow_selector": {
+    "group_index": 0,
+    "content_index": 0,
+    "expected_objective": "Verify that clicking the News navigation link successfully navigates to the News section page, demonstrating a positive test scenario for primary navigation."
+  },
+  "semantic_scenario": {
+    "name": "news-primary-navigation",
+    "reset": {
+      "url": "http://127.0.0.1:3000/",
+      "viewport_width": 1440,
+      "viewport_height": 900,
+      "clear_storage": true
+    },
+    "actions": [
+      {
+        "type": "click",
+        "target": {
+          "role": "link",
+          "name": "News",
+          "exact": true
+        }
+      }
+    ]
+  },
+  "evidence_assertion": {
+    "type": "active_page",
+    "page_id": "news"
+  },
+  "manual_repair": {
+    "relative_path": "newsday-app/newsday.html",
+    "description": "Remove the premature closing script tag before the navigation functions so the existing generated functions are executable.",
+    "old": "};\n</script>\n\n// Toggle Dropdown",
+    "new": "};\n\n// Toggle Dropdown"
+  },
+  "information_boundary": {
+    "workflow_visible_to_agent_or_model": false,
+    "workflow_used_only_by_probe_controller": true,
+    "browser_makes_verdict": false,
+    "repair_is_manual_and_scripted": true
+  }
+}

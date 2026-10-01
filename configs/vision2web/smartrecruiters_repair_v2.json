@@ -1,0 +1,40 @@
+{
+  "schema": "multimodalcode-repair-spec-2",
+  "case_id": "frontend/smartrecruiters",
+  "version_source": {
+    "kind": "manifest",
+    "path": "/data/miyapeng/mmcode/MultimodalCode/runs/vsv_eval/smartrecruiters-full-0907/repair/versions/reconstruction.json"
+  },
+  "runtime": {"command": ["node", "app/server.js"], "cwd": ".", "code_subdir": "app", "description": "Original pre-start.sh Node server", "ready_timeout": 15},
+  "routes": ["/", "/pricing", "/about-us", "/winston-ai", "/customers", "/careers"],
+  "functional_checks": [
+    {"ordinal": 299, "route": "/careers", "name": "careers_filter_search", "assertions": [
+      {"path": "engineeringCount", "op": "gt", "value": 0}, {"path": "allEngineering", "op": "eq", "value": true}, {"path": "accountMatches", "op": "gt", "value": 0}]},
+    {"ordinal": 302, "route": "/customers", "name": "customers_filter_load_more", "assertions": [
+      {"path": "initial", "op": "gt", "value": 0}, {"path": "afterLoad", "op": "gt", "other_path": "initial"}, {"path": "healthcareShown", "op": "all_eq", "value": "Healthcare"}]},
+    {"ordinal": 305, "route": "/", "name": "navigation", "assertions": [
+      {"path": "afterCompany", "op": "endswith", "value": "/about-us"}, {"path": "afterProduct", "op": "endswith", "value": "/winston-ai"},
+      {"path": "afterPricing", "op": "endswith", "value": "/pricing"}, {"path": "pricingActive", "op": "eq", "value": true}]},
+    {"ordinal": 310, "route": "/winston-ai", "name": "faq_carousel", "assertions": [
+      {"path": "faqBefore", "op": "ne", "other_path": "faqAfter"}, {"path": "changed", "op": "eq", "value": true}]},
+    {"ordinal": 313, "route": "/", "name": "mobile_menu", "viewport": {"width": 390, "height": 844}, "assertions": [
+      {"path": "hamburgerVisible", "op": "eq", "value": true}, {"path": "mobileMenuOpens", "op": "eq", "value": true}]}
+  ],
+  "targets": [
+    {"id": "reveal", "before": "V0", "after": "V1", "route": "/", "reference": "homepage.jpg", "policy_event": 237,
+     "source_action_ordinals": [232], "source_observation_ordinals": [235], "requirement_source": "prototype:homepage.jpg; observation condition: unscrolled full-page capture, not natural scrolling",
+     "expectation": "The homepage metrics and Winston content must be visible in a full-page capture, consistent with the prototype. Assess this symptom only; do not require reproducing a claimed JavaScript cause."},
+    {"id": "gartner_attempt1", "before": "V0", "after": "V1", "route": "/", "reference": "homepage.jpg", "policy_event": 237,
+     "source_action_ordinals": [232], "source_observation_ordinals": [235], "requirement_source": "prototype:homepage.jpg Gartner section",
+     "expectation": "The Gartner area must show a recognizable Gartner wordmark as required by the prototype, not an empty white rectangle. Merely hiding the required logo is not a successful repair."},
+    {"id": "gartner_attempt2", "before": "V1", "after": "V2", "route": "/", "reference": "homepage.jpg", "policy_event": 259,
+     "source_action_ordinals": [249, 255, 257], "source_observation_ordinals": [252, 256, 258], "requirement_source": "prototype:homepage.jpg Gartner section",
+     "expectation": "The Gartner area must show a recognizable Gartner wordmark as required by the prototype, not an empty white rectangle. Assess recognizable content and visible fidelity; do not infer success just because code replaced an image."},
+    {"id": "pricing_logo", "before": "V1", "after": "V2", "route": "/pricing", "reference": "pricing.jpg", "policy_event": 267,
+     "source_action_ordinals": [265], "source_observation_ordinals": [266], "requirement_source": "prototype:pricing.jpg Deloitte logo; trigger is asset inspection, not an explicit visual judgment",
+     "expectation": "The Deloitte customer logo on Pricing must be visible and recognizable, consistent with the prototype. Confirm that the before screenshot actually demonstrates a problem; changing an asset alone is not evidence of a defect."},
+    {"id": "testimonial_box", "before": "V2", "after": "V3", "route": "/", "reference": "homepage.jpg", "policy_event": 307,
+     "source_action_ordinals": [249], "source_observation_ordinals": [252], "requirement_source": "prototype:homepage.jpg testimonial section; prior visual evidence crosses an episode boundary",
+     "expectation": "Remove the unintended solid white box above the testimonial while retaining the content required by the prototype. If deleting it removes a required brandmark rather than restoring it, do not call this a fully successful repair."}
+  ]
+}

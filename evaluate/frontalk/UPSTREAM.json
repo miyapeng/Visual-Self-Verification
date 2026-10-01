@@ -1,0 +1,12 @@
+{
+  "name": "FronTalk",
+  "source_url": "https://github.com/shirley-wu/frontalk",
+  "source_commit": "527c4b8b1ae0a7be33cec4e8958794d8a56cc660",
+  "snapshot_method": "git archive HEAD from a clean checkout",
+  "snapshot_date": "2026-08-16",
+  "upstream_file_count": 2257,
+  "file_manifest": "UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "8946e5d7530fa14acff541c02e4dd77d8a01c7da3c1a0746e1e9f1014acb55c8",
+  "license_declaration": "No standalone code license was present in the upstream GitHub repository; the Hugging Face dataset card declares MIT for the dataset.",
+  "local_worktree_changes_in_source_checkout": "excluded"
+}

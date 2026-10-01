@@ -1,0 +1,14 @@
+{
+  "name": "Vision2Web paper evaluator",
+  "source_url": "https://github.com/zai-org/Vision2Web",
+  "source_commit": "3111cc312a2ff86d764d93477cb7c17205153e50",
+  "snapshot_method": "git archive",
+  "snapshot_date": "2026-08-25",
+  "upstream_file_count": 41,
+  "file_manifest": "PAPER_UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "6f618b9d3214db7eab89e7d122617ff1c5b3c2f20d48102e4f758d062b2f8bfc",
+  "functional_protocol": "WebVoyager-style GUIAgentTester",
+  "paper_functional_model": "glm-4.6v",
+  "paper_visual_model": "gemini-3-pro-preview",
+  "note": "This is the last public repository state before commit f04d075 replaced GUIAgentTester with Claude Code plus playwright-cli."
+}

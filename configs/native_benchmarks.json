@@ -1,0 +1,11 @@
+{
+  "frontalk": {
+    "protocol": "official-native",
+    "adapter": "evaluate/frontalk/run_official.py",
+    "upstream_metadata": "evaluate/frontalk/UPSTREAM.json",
+    "data_manifest": "data/frontalk/manifest.json",
+    "full_data": "data/frontalk/data.jsonl",
+    "environment_status": "deferred",
+    "generic_run_py_compatible": false
+  }
+}

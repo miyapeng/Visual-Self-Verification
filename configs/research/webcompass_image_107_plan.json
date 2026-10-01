@@ -1,0 +1,64 @@
+{
+  "planner": "manual-from-webcompass-reference-pages",
+  "plan_version": 1,
+  "metadata": {
+    "source": "WebCompass/test_output/image/107",
+    "protocol": "one-shot frozen navigation and calendar interaction plan"
+  },
+  "checklist": [
+    {
+      "id": "homepage",
+      "description": "The City of Guthrie homepage loads with its Calendar affordance.",
+      "expected": "The page title identifies the City of Guthrie and a Calendar quick link is visible.",
+      "weight": 1,
+      "category": "Runnability",
+      "source": "released homepage screenshots"
+    },
+    {
+      "id": "calendar_navigation",
+      "description": "The homepage Calendar affordance opens the calendar page.",
+      "expected": "Clicking Calendar navigates to calendar.html and shows the Calendar heading.",
+      "weight": 1,
+      "category": "Spec Implementation",
+      "source": "released index and calendar pages"
+    },
+    {
+      "id": "calendar_days",
+      "description": "The calendar script renders January 2026 day cells.",
+      "expected": "The calendar day grid is populated and contains day 31.",
+      "weight": 2,
+      "category": "Spec Implementation",
+      "source": "released calendar screenshot and HTML affordance"
+    },
+    {
+      "id": "calendar_controls",
+      "description": "Month and year navigation controls update visible calendar state.",
+      "expected": "Next month changes January to February and Next year changes 2026 to 2027.",
+      "weight": 2,
+      "category": "Spec Implementation",
+      "source": "released calendar controls"
+    }
+  ],
+  "actions": [
+    {"type": "screenshot", "checklist_id": "homepage", "note": "Capture homepage"},
+    {"type": "assert_text", "selector": "body", "expected": "Calendar", "checklist_id": "homepage", "timeout_ms": 2000},
+    {"type": "assert_visible", "selector": ".quick-link-item[href='calendar.html']", "expected": "true", "checklist_id": "homepage", "timeout_ms": 2000},
+
+    {"type": "click", "selector": ".quick-link-item[href='calendar.html']", "checklist_id": "calendar_navigation", "timeout_ms": 2000},
+    {"type": "assert_url", "expected": "calendar.html", "checklist_id": "calendar_navigation"},
+    {"type": "assert_text", "selector": "h1", "expected": "Calendar", "match": "equals", "checklist_id": "calendar_navigation", "timeout_ms": 2000},
+
+    {"type": "assert_text", "selector": ".month-name", "expected": "January", "match": "equals", "checklist_id": "calendar_days", "timeout_ms": 2000},
+    {"type": "assert_text", "selector": ".year-name", "expected": "2026", "match": "equals", "checklist_id": "calendar_days", "timeout_ms": 2000},
+    {"type": "assert_text", "selector": "#calendarDays", "expected": "31", "checklist_id": "calendar_days", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "calendar_days", "note": "Capture populated January calendar"},
+
+    {"type": "click", "role": "button", "name": "Next month", "checklist_id": "calendar_controls", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 100, "checklist_id": "calendar_controls"},
+    {"type": "assert_text", "selector": ".month-name", "expected": "February", "match": "equals", "checklist_id": "calendar_controls", "timeout_ms": 2000},
+    {"type": "click", "role": "button", "name": "Next year", "checklist_id": "calendar_controls", "timeout_ms": 2000},
+    {"type": "wait", "milliseconds": 100, "checklist_id": "calendar_controls"},
+    {"type": "assert_text", "selector": ".year-name", "expected": "2027", "match": "equals", "checklist_id": "calendar_controls", "timeout_ms": 2000},
+    {"type": "screenshot", "checklist_id": "calendar_controls", "note": "Capture advanced calendar state"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "mini-swe-agent",
+  "source_url": "https://github.com/SWE-agent/mini-swe-agent",
+  "source_commit": "a83fcae82d2a08f0ee0c688f9d137b3566c097f8",
+  "snapshot_date": "2026-08-13",
+  "included": "src/minisweagent, excluding __pycache__ and *.py[co]",
+  "license": "MIT",
+  "tree_hash_algorithm": "sha256 over sorted relative_path + NUL + sha256(file)",
+  "source_tree_sha256": "8feba7435bc4131d62fdeb843c6a0c8b8f23fbbad5830481a26683831c7424c8"
+}

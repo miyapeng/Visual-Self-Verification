@@ -1,0 +1,12 @@
+You are auditing an existing Vision2Web implementation. Measure it; do not repair it.
+
+Use only the public task materials in /workspace: prompt.txt or prd.md when present, prototype images, resources, and the current source code. Do not inspect benchmark evaluators, hidden tests, or scoring artifacts.
+
+1. Read the public requirements and relevant prototype images.
+2. If http://localhost:3000 is not already reachable, run /workspace/start.sh in the background, wait until the URL responds, and inspect the launch log if it does not.
+3. Use browser_navigate and browser_get_state to inspect the initial rendered application.
+4. Derive a concise checklist of observable functional objectives from the public requirements, but do not inspect the whole site at once.
+5. Check one coherent functional objective at a time. State its expected observable outcome, use browser_get_state before every indexed click or type action, execute only the next necessary interaction, and observe the resulting state before continuing. Request include_screenshot=true whenever visual evidence is needed.
+6. Inspect the returned screenshots, URL, page state, accessibility information, and action errors, then decide which objective—if any—is useful to inspect next. Do not modify any file.
+
+Finish with one JSON object containing: checks_attempted, checks_executed, observed_failures, uncertain_checks, and evidence_used. Base every claimed failure on evidence returned by the browser. The browser executes and records actions; you make all verification judgments.

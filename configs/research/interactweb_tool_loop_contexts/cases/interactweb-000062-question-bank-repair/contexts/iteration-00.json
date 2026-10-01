@@ -1,0 +1,40 @@
+{
+  "policy": "guarded_frontier",
+  "records": [
+    {
+      "record_id": "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:runtime_integrity",
+      "kind": "verification_residual",
+      "text": "[Verification residual: runtime_integrity]\nStatus: fail\nExpected: No browser console, page, or request errors.\nObserved: [{\"type\":\"pageerror\",\"text\":\"TypeError: Assignment to constant variable.\",\"stack\":\"TypeError: Assignment to constant variable.\\n    at renderQuestionBank (http://127.0.0.1:<port>/src/main.js:230:8)\\n    at selectCategory (http://127.0.0.1:<port>/src/main.js:327:3)\\n    at HTMLButtonElement.onclick (http://127.0.0.1:<port>/:99:41)\",\"location\":{}}]\nFirst failing action: 3\nResidual: Expected No browser console, page, or request errors.; observed [{\"type\":\"pageerror\",\"text\":\"TypeError: Assignment to constant variable.\",\"stack\":\"TypeError: Assignment to constant variable.\\n    at renderQuestionBank (http://127.0.0.1:<port>/src/main.js:230:8)\\n    at selectCategory (http://127.0.0.1:<port>/src/main.js:327:3)\\n    at HTMLButtonElement.onclick (http://127.0.0.1:<port>/:99:41)\",\"location\":{}}]\nCurrent-version local console errors: {\"missing_local_resources\": [], \"page_errors\": [\"TypeError: Assignment to constant variable.\\nTypeError: Assignment to constant variable.\\n    at renderQuestionBank (http://127.0.0.1:<port>/src/main.js:230:8)\\n    at selectCategory (http://127.0.0.1:<port>/src/main.js:327:3)\\n    at HTMLButtonElement.onclick (http://127.0.0.1:<port>/:99:41)\"]}\nConsole evidence: []\n\nAccessibility evidence: - heading \"DMV Practice Test\" [level=1]\n- paragraph: Prepare for your driver's license exam\n- button \"Traffic Signs\"\n- button \"Rules of Road\"\n- button \"Right of Way\"\n- button \"Parking & Stopping\"",
+      "code_version": "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee",
+      "sequence": 6,
+      "checklist_id": "runtime_integrity",
+      "status": "fail",
+      "image_path": "/data/miyapeng/mmcode/MultimodalCode/runs/research/active_visual_verification/interactweb-execution-rooted-qwen35-001/execution_rooted/guarded_frontier/executions/interactweb-000062-question-bank-repair/0523f748-835a-4850-bf3a-c1783688f199/states/0004-assert_no_console_errors.png",
+      "image_pixels": 1228800,
+      "is_first_failure": true,
+      "is_regression": false,
+      "metadata": {
+        "execution_id": "0523f748-835a-4850-bf3a-c1783688f199",
+        "first_failing_action": 3,
+        "has_global_error_certificate": true,
+        "is_newly_passed": false,
+        "oracle_predecessors": []
+      }
+    }
+  ],
+  "omitted_ids": [
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:0",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:1",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:2",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:3",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:4",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:action:5",
+    "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee:question_bank_access"
+  ],
+  "estimated_text_tokens": 386,
+  "image_count": 1,
+  "image_pixels": 1228800,
+  "metadata": {
+    "selection_code_version": "7d56c5786f1cd1f0ab617cfbfd807f6040b958a30c2fd1593ceec0730dcd1eee"
+  }
+}

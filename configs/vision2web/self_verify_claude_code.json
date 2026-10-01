@@ -1,0 +1,101 @@
+{
+  "schema": "multimodalcode-vision2web-guided-vsv-claude-code-2",
+  "browser_interface_revision": "official-playwright-cli-claude-skill-v2-context-audit",
+  "benchmark": {
+    "name": "zai-org/Vision2Web",
+    "dataset_revision": "8f03299d92b9bd852e93852d0c21e8a4848ab661",
+    "evaluator_commit": "577f9397b3db8fc6d828adde254a830caa65d515",
+    "levels": {
+      "Level 1": "webpage",
+      "Level 2": "frontend",
+      "Level 3": "website"
+    },
+    "total_instances": 193
+  },
+  "scaffold": {
+    "name": "claude-code-cli",
+    "transport": "direct ClusterX case container; outer docker exec removed only",
+    "command": "claude --print --verbose --output-format stream-json --dangerously-skip-permissions -p <prompt>",
+    "native_browser": "playwright-cli with the image-installed Claude skill",
+    "browser_interface_revision": "official-playwright-cli-claude-skill-v2-context-audit"
+  },
+  "runtime_image": {
+    "reference": "registry.pjlab.org.cn/ccr-t-llm-frontier/vision2web:official-577f939",
+    "digest": "sha256:3d2fa9b0999a1fbb10c9d4ccc653c7d5560a713668d6c18c80d0d06e36e43056"
+  },
+  "model": {
+    "name": "Qwen3.5-9B",
+    "path": "/data/miyapeng/model/Qwen3.5-9B",
+    "served_name": "Qwen3.5-9B",
+    "transport": "native Anthropic Messages API on the shared vLLM endpoint",
+    "max_input_tokens": 229376,
+    "max_output_tokens": 32768
+  },
+  "conditions": [
+    {
+      "name": "official",
+      "task_prompt": "official-byte-identical",
+      "tools": "official Claude Code tools and image-installed playwright-cli skill"
+    },
+    {
+      "name": "guided_vsv",
+      "task_prompt": "official plus the frozen detailed function-scoped visual self-verification procedure",
+      "tools": "identical to official"
+    }
+  ],
+  "budget": {
+    "timeout_seconds_per_attempt": 7200,
+    "max_retries": 2
+  },
+  "selection": {
+    "source": "configs/vision2web/self_verify_openhands.json",
+    "smoke": [
+      "webpage/classic-clashes",
+      "frontend/forum_vectorworks",
+      "website/permanent"
+    ],
+    "fixed_experiment": {
+      "Level 1": [
+        "webpage/brother",
+        "webpage/kashiwabara",
+        "webpage/windpower_monthly",
+        "webpage/fairfax-county",
+        "webpage/wikipedia",
+        "webpage/imdb"
+      ],
+      "Level 2": [
+        "frontend/academy_govloop",
+        "frontend/newsday_co_tt",
+        "frontend/mojarto",
+        "frontend/community_hpe",
+        "frontend/ewif",
+        "frontend/copenhagenmarathon"
+      ],
+      "Level 3": [
+        "website/sykescottages",
+        "website/act",
+        "website/scenario"
+      ]
+    }
+  },
+  "information_boundary": {
+    "agent_visible": [
+      "official task prompt",
+      "PRD or public prompt.txt when supplied",
+      "prototype images",
+      "public resources",
+      "the current workspace and self-generated browser observations"
+    ],
+    "post_trajectory_only": [
+      "workflow.json",
+      "official functional evaluator",
+      "official visual evaluator"
+    ]
+  },
+  "status": {
+    "direct_container_adapter": "implemented",
+    "real_image_capability_probe": "required before controlled experiments",
+    "batch_semantic_action_wrapper": "not added; official playwright-cli already supports the required actions and Claude decides how to group them",
+    "removed_duplicate_condition": "the historical tools alias was byte-identical to official and is not an active experimental condition"
+  }
+}

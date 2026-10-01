@@ -1,0 +1,19 @@
+{
+  "name": "OpenHands Vision2Web runtime",
+  "acquisition": "first-party Python packages extracted from the frozen Vision2Web task image",
+  "snapshot_date": "2026-08-13",
+  "packages": {
+    "openhands": "1.16.0",
+    "openhands-sdk": "1.21.0",
+    "openhands-tools": "1.21.0",
+    "openhands-workspace": "1.11.1",
+    "openhands-agent-server": "1.42.1"
+  },
+  "runtime_image": "registry.pjlab.org.cn/ccr-t-llm-frontier/vision2web:official-577f939",
+  "runtime_image_digest": "sha256:3d2fa9b0999a1fbb10c9d4ccc653c7d5560a713668d6c18c80d0d06e36e43056",
+  "vision2web_source_commit": "577f9397b3db8fc6d828adde254a830caa65d515",
+  "included": "openhands_cli and the shared openhands namespace, excluding __pycache__ and *.py[co]",
+  "license": "MIT (license shipped with the OpenHands CLI distribution)",
+  "tree_hash_algorithm": "sha256 over sorted relative_path + NUL + sha256(file)",
+  "source_tree_sha256": "6a2dcc744317f1a60173ebabd833281f5fe76efdb57e3a3f7677f12984cf7ac8"
+}

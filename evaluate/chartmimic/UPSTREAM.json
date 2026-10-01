@@ -1,0 +1,12 @@
+{
+  "name": "ChartMimic",
+  "source_url": "https://github.com/ChartMimic/ChartMimic",
+  "source_commit": "92ba5b97b908c607f630c3ffbb5043de9de62b76",
+  "snapshot_method": "git archive HEAD",
+  "snapshot_date": "2026-08-13",
+  "upstream_file_count": 91,
+  "file_manifest": "UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "eabe45d790b5f6c6a35b946c4b492dac3a3ce859df90fdea85bb24e2fa6046e4",
+  "license_declaration": "Apache-2.0, declared in the upstream README; the repository does not contain a standalone license file",
+  "local_worktree_changes_in_source_checkout": "excluded"
+}

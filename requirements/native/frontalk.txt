@@ -1,0 +1,4 @@
+-r ../../evaluate/frontalk/upstream/requirements.txt
+
+# Runtime-only browser driver. This does not modify the official benchmark.
+chromedriver-binary==151.0.7886.0.0

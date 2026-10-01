@@ -1,0 +1,36 @@
+{
+  "schema": "multimodalcode-vision2web-policy-endpoint-1",
+  "endpoint": {
+    "openai_base_url": "https://token.pjlab.org.cn/v1",
+    "anthropic_base_url": "https://token.pjlab.org.cn",
+    "api_key_env": "PJLAB_TOKEN_API_KEY"
+  },
+  "models": {
+    "glm-5.3-flash": {
+      "max_model_len": 1048576,
+      "experiment_context_limit": 200000,
+      "openai_image_probe": true,
+      "anthropic_image_probe": true,
+      "openai_tool_probe": true,
+      "anthropic_tool_probe": true,
+      "note": "The platform metadata reports supports_image_in=false, but direct OpenAI and Anthropic image probes both succeeded; preserve this discrepancy in reports."
+    },
+    "kimi-k3": {
+      "max_model_len": 1048576,
+      "experiment_context_limit": 200000,
+      "openai_image_probe": true,
+      "anthropic_image_probe": true,
+      "openai_tool_probe": true,
+      "anthropic_tool_probe": true
+    },
+    "kimi-k2.6": {
+      "max_model_len": 262144,
+      "experiment_context_limit": 200000,
+      "openai_image_probe": true,
+      "anthropic_image_probe": true,
+      "openai_tool_probe": true,
+      "anthropic_tool_probe": true
+    }
+  },
+  "verified_at_utc": "2026-08-28"
+}

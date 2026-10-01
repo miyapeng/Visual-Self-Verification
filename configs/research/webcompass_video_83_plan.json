@@ -1,0 +1,90 @@
+{
+  "planner": "benchmark-derived-frozen-plan",
+  "plan_version": 1,
+  "metadata": {
+    "source": "WebCompass/test_output/video/Claude-Opus-4.5/83",
+    "protocol": "one-shot frozen pixel-buffer and temporal-change plan",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "checklist": [
+    {
+      "id": "canvas_surface",
+      "description": "The full-screen animation canvas exists and is visible.",
+      "expected": "A visible canvas fills the application surface.",
+      "weight": 1,
+      "category": "visual",
+      "source": "released HTML and video frames"
+    },
+    {
+      "id": "canvas_pixels",
+      "description": "The canvas drawing buffer contains rendered pixels.",
+      "expected": "At least 50% of the canvas buffer has non-transparent drawn pixels.",
+      "weight": 2,
+      "category": "visual",
+      "source": "released video frames"
+    },
+    {
+      "id": "visual_structure",
+      "description": "The rendered frame matches the released diamond-wave color and edge structure.",
+      "expected": "Reference-bound color/edge/orientation signature is at least 0.8.",
+      "weight": 2,
+      "category": "visual",
+      "source": "released video frame 0015"
+    },
+    {
+      "id": "temporal_motion",
+      "description": "The rendered canvas changes over time.",
+      "expected": "At least 0.5% of canvas pixels change over a 500ms interval.",
+      "weight": 2,
+      "category": "functional",
+      "source": "released video sequence"
+    }
+  ],
+  "actions": [
+    {
+      "type": "screenshot",
+      "checklist_id": "canvas_surface",
+      "note": "Capture the initial rendered viewport."
+    },
+    {
+      "type": "assert_visible",
+      "selector": "#canvas",
+      "expected": "true",
+      "checklist_id": "canvas_surface"
+    },
+    {
+      "type": "assert_canvas_drawn",
+      "selector": "#canvas",
+      "minimum_ratio": 0.5,
+      "checklist_id": "canvas_pixels"
+    },
+    {
+      "type": "assert_visual_signature",
+      "selector": "#canvas",
+      "reference_image": "../reference/frame_0015.jpg",
+      "minimum_ratio": 0.8,
+      "checklist_id": "visual_structure"
+    },
+    {
+      "type": "hover",
+      "selector": "#canvas",
+      "checklist_id": "temporal_motion",
+      "note": "Exercise the released page's stated mouse interaction surface."
+    },
+    {
+      "type": "assert_visual_change",
+      "selector": "#canvas",
+      "milliseconds": 500,
+      "minimum_ratio": 0.005,
+      "checklist_id": "temporal_motion"
+    },
+    {
+      "type": "screenshot",
+      "checklist_id": "temporal_motion",
+      "note": "Capture the post-interval animation state."
+    }
+  ]
+}

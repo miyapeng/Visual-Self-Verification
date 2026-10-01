@@ -1,0 +1,2 @@
+[console_scripts]
+agent-server = openhands.agent_server.__main__:main

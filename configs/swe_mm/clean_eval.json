@@ -1,0 +1,12 @@
+{
+  "name": "swe-mm-dev-clean-clusterx-evaluation",
+  "dataset": "SWE-bench/SWE-bench_Multimodal",
+  "split": "dev",
+  "instances": 102,
+  "runtime": "runs/swe_mm_official/runtime-clean-eval-20260814a",
+  "state": "runs/swe_mm_official/clean_eval_state_20260814a.json",
+  "job_suffix": "c1",
+  "evaluator_commit": "7e578260da58400f307e435e43d1d2ab29d686f6",
+  "test_timeout_seconds": 1800,
+  "transport": "one fresh digest-matched ClusterX instance-image job per model patch"
+}

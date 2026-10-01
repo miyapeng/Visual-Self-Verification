@@ -1,0 +1,471 @@
+#!/usr/bin/env python3
+"""Strict Docker-CLI transport for Vision2Web inside a ClusterX sandbox image.
+
+The released Vision2Web evaluator talks to its sandbox exclusively through the
+Docker CLI.  A ClusterX job is already running *inside* that exact sandbox
+image, so nesting Docker is unnecessary and usually unavailable.  This shim
+maps the small Docker command surface used by the evaluator onto the current
+job container while preserving the copy/reset/exec/stop lifecycle.
+
+It is intentionally fail-closed: it only operates when explicitly enabled,
+checks the requested image and synthetic container id, confines copy targets,
+and rejects Docker operations it does not understand.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+class TransportError(RuntimeError):
+    """A command cannot be mapped without changing its semantics."""
+
+
+def _required_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise TransportError(f"required environment variable is missing: {name}")
+    return value
+
+
+def _settings() -> dict[str, Any]:
+    if os.environ.get("V2W_CLUSTERX_ENABLED") != "1":
+        raise TransportError("ClusterX transport is disabled (set V2W_CLUSTERX_ENABLED=1)")
+
+    state_dir = Path(_required_env("V2W_CLUSTERX_STATE_DIR")).resolve()
+    state_dir.mkdir(parents=True, exist_ok=True)
+    workspace = Path(os.environ.get("V2W_CLUSTERX_WORKSPACE", "/workspace")).absolute()
+    allowed_input = Path(_required_env("V2W_CLUSTERX_ALLOWED_INPUT_ROOT")).resolve()
+    allowed_output = Path(_required_env("V2W_CLUSTERX_ALLOWED_OUTPUT_ROOT")).resolve()
+    trace = Path(os.environ.get("V2W_CLUSTERX_TRACE", str(state_dir / "transport.jsonl"))).resolve()
+    trace.parent.mkdir(parents=True, exist_ok=True)
+    return {
+        "state_dir": state_dir,
+        "state_file": state_dir / "state.json",
+        "staging": state_dir / "staging",
+        "workspace": workspace,
+        "allowed_input": allowed_input,
+        "allowed_output": allowed_output,
+        "trace": trace,
+        "expected_image": _required_env("V2W_CLUSTERX_EXPECTED_IMAGE"),
+    }
+
+
+def _short_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def _sanitize_argv(argv: list[str]) -> list[str]:
+    sanitized: list[str] = []
+    redact_next_env = False
+    for value in argv:
+        if redact_next_env:
+            key, separator, secret = value.partition("=")
+            sanitized.append(
+                f"{key}=<sha256:{_short_hash(secret)}>" if separator else "<redacted-env>"
+            )
+            redact_next_env = False
+            continue
+        sanitized.append(value)
+        if value in {"-e", "--env"}:
+            redact_next_env = True
+
+    # Functional prompts can be very large.  Their exact source is frozen in
+    # upstream; store a content hash instead of duplicating it in every trace.
+    return [
+        value
+        if len(value) <= 4096
+        else f"<sha256:{_short_hash(value)};bytes={len(value.encode('utf-8'))}>"
+        for value in sanitized
+    ]
+
+
+def _trace(settings: dict[str, Any], argv: list[str], status: str, **extra: Any) -> None:
+    record = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "argv": _sanitize_argv(argv),
+        "cwd": os.getcwd(),
+        "status": status,
+        **extra,
+    }
+    with settings["trace"].open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
+
+
+def _write_state(settings: dict[str, Any], state: dict[str, Any]) -> None:
+    temporary = settings["state_file"].with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    temporary.replace(settings["state_file"])
+
+
+def _load_state(settings: dict[str, Any]) -> dict[str, Any]:
+    try:
+        return json.loads(settings["state_file"].read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise TransportError("no synthetic container exists; docker create must run first") from exc
+
+
+def _check_container(state: dict[str, Any], container_id: str) -> None:
+    if container_id != state.get("container_id"):
+        raise TransportError(f"unknown synthetic container id: {container_id}")
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _validate_copy_path(path: Path, root: Path, role: str) -> Path:
+    resolved = path.resolve()
+    if not _is_within(resolved, root):
+        raise TransportError(f"{role} escapes allowed root {root}: {resolved}")
+    return resolved
+
+
+def _copy_contents(source: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for item in source.iterdir():
+        target = destination / item.name
+        if item.is_dir() and not item.is_symlink():
+            shutil.copytree(item, target, symlinks=False, dirs_exist_ok=True)
+        elif item.is_symlink():
+            resolved = item.resolve(strict=True)
+            if resolved.is_dir():
+                shutil.copytree(resolved, target, symlinks=False, dirs_exist_ok=True)
+            else:
+                shutil.copy2(resolved, target)
+        else:
+            shutil.copy2(item, target)
+
+
+def _clear_directory(path: Path, *, settings: dict[str, Any]) -> None:
+    # /workspace is disposable inside the ClusterX task, but guard against a
+    # typo ever turning the official reset into deletion of shared /data.
+    if path != settings["workspace"]:
+        raise TransportError(f"refusing to reset unconfigured workspace: {path}")
+    if path in {Path("/"), Path("/data"), Path("/tmp")}:
+        raise TransportError(f"refusing unsafe workspace path: {path}")
+    if path.is_symlink():
+        raise TransportError(f"workspace must not be a symlink: {path}")
+    path.mkdir(parents=True, exist_ok=True)
+    for item in path.iterdir():
+        if item.is_dir() and not item.is_symlink():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+
+
+def _cmd_images(settings: dict[str, Any], args: list[str]) -> int:
+    if args != ["-q", settings["expected_image"]]:
+        raise TransportError("only `docker images -q <expected-image>` is supported")
+    print(hashlib.sha256(settings["expected_image"].encode()).hexdigest())
+    return 0
+
+
+def _parse_env_assignment(value: str) -> tuple[str, str]:
+    key, separator, env_value = value.partition("=")
+    if not separator or not key or "\x00" in key or "\x00" in env_value:
+        raise TransportError(f"invalid environment assignment: {value!r}")
+    return key, env_value
+
+
+def _cmd_create(settings: dict[str, Any], args: list[str]) -> int:
+    name: str | None = None
+    workdir: str | None = None
+    remove = False
+    create_env: dict[str, str] = {}
+    index = 0
+    while index < len(args):
+        value = args[index]
+        if value in {"--name", "--workdir", "-e", "--env"}:
+            if index + 1 >= len(args):
+                raise TransportError(f"missing value for {value}")
+            operand = args[index + 1]
+            if value == "--name":
+                name = operand
+            elif value == "--workdir":
+                workdir = operand
+            else:
+                key, env_value = _parse_env_assignment(operand)
+                create_env[key] = env_value
+            index += 2
+            continue
+        if value == "--rm":
+            remove = True
+            index += 1
+            continue
+        break
+
+    remainder = args[index:]
+    expected = [settings["expected_image"], "sleep", "infinity"]
+    if remainder != expected:
+        raise TransportError(f"unsupported docker create image/command: {remainder!r}")
+    if not name or workdir != str(settings["workspace"]) or not remove:
+        raise TransportError("docker create must specify --name, configured --workdir, and --rm")
+
+    container_id = hashlib.sha256(
+        f"{settings['state_dir']}\0{name}\0{settings['expected_image']}".encode()
+    ).hexdigest()
+    state = {
+        "schema": "vision2web-clusterx-transport-1",
+        "container_id": container_id,
+        "name": name,
+        "image": settings["expected_image"],
+        # State is mode 0600 and never appears in the audit trace.  Docker
+        # would persist these variables in the created container too.
+        "create_env": create_env,
+        "detached_process_groups": [],
+        "started": False,
+    }
+    _write_state(settings, state)
+    print(container_id)
+    return 0
+
+
+def _cmd_start(settings: dict[str, Any], args: list[str]) -> int:
+    if len(args) != 1:
+        raise TransportError("docker start expects exactly one container id")
+    state = _load_state(settings)
+    _check_container(state, args[0])
+    state["started"] = True
+    _write_state(settings, state)
+    print(args[0])
+    return 0
+
+
+def _cmd_ps(settings: dict[str, Any], args: list[str]) -> int:
+    state = _load_state(settings)
+    expected = ["--filter", f"name={state['name']}", "--format", "{{.ID}}"]
+    if args != expected:
+        raise TransportError("unsupported docker ps query")
+    if state.get("started"):
+        print(state["container_id"][:12])
+    return 0
+
+
+def _parse_host_contents_path(value: str) -> Path:
+    # Official code appends '/.' to request directory contents.
+    if not value.endswith("/."):
+        raise TransportError(f"host-to-container copy must use a trailing '/.': {value}")
+    return Path(value[:-2] or "/")
+
+
+def _cmd_cp(settings: dict[str, Any], args: list[str]) -> int:
+    if len(args) != 2:
+        raise TransportError("docker cp expects exactly source and destination")
+    state = _load_state(settings)
+    source, destination = args
+    container_id = state["container_id"]
+
+    if destination == f"{container_id}:/tmp/workspace":
+        host_source = _validate_copy_path(
+            _parse_host_contents_path(source), settings["allowed_input"], "copy source"
+        )
+        if not host_source.is_dir():
+            raise TransportError(f"copy source is not a directory: {host_source}")
+        staging = settings["staging"]
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True)
+        _copy_contents(host_source, staging)
+        return 0
+
+    container_prefix = f"{container_id}:"
+    if source.startswith(container_prefix):
+        container_source = source[len(container_prefix):]
+        if container_source != "/workspace/test_results":
+            raise TransportError(f"unsupported container copy source: {container_source}")
+        actual_source = settings["workspace"] / "test_results"
+        if not actual_source.is_dir():
+            raise TransportError(f"container copy source does not exist: {actual_source}")
+        host_destination = _validate_copy_path(
+            Path(destination), settings["allowed_output"], "copy destination"
+        )
+        host_destination.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(
+            actual_source,
+            host_destination / actual_source.name,
+            symlinks=False,
+            dirs_exist_ok=True,
+        )
+        return 0
+
+    raise TransportError("unsupported docker cp direction or synthetic container id")
+
+
+OFFICIAL_RESET_COMMAND = (
+    "rm -rf /workspace/* /workspace/.[!.]* /workspace/..?* 2>/dev/null || true; "
+    "if [ -d /tmp/workspace ]; then "
+    "  cp -r /tmp/workspace/* /workspace/ 2>/dev/null || true; "
+    "  cp -r /tmp/workspace/.[!.]* /workspace/ 2>/dev/null || true; "
+    "  cp -r /tmp/workspace/..?* /workspace/ 2>/dev/null || true; "
+    "  rm -rf /tmp/workspace; "
+    "fi"
+)
+
+
+def _parse_exec_options(
+    settings: dict[str, Any], state: dict[str, Any], args: list[str]
+) -> tuple[bool, bool, Path, dict[str, str], list[str]]:
+    detached = False
+    interactive = False
+    workdir = settings["workspace"]
+    explicit_env: dict[str, str] = {}
+    user: str | None = None
+    index = 0
+    while index < len(args):
+        value = args[index]
+        if value == state["container_id"]:
+            index += 1
+            break
+        if value == "-d":
+            detached = True
+            index += 1
+        elif value == "-i":
+            interactive = True
+            index += 1
+        elif value in {"-w", "--workdir", "-e", "--env", "--user"}:
+            if index + 1 >= len(args):
+                raise TransportError(f"missing value for docker exec option {value}")
+            operand = args[index + 1]
+            if value in {"-w", "--workdir"}:
+                workdir = Path(operand).absolute()
+            elif value == "--user":
+                user = operand
+            else:
+                key, env_value = _parse_env_assignment(operand)
+                explicit_env[key] = env_value
+            index += 2
+        else:
+            raise TransportError(f"unsupported docker exec option or container id: {value}")
+    else:
+        raise TransportError("docker exec is missing the synthetic container id")
+
+    if user not in {None, "root", "agent"}:
+        raise TransportError(f"unsupported docker exec user: {user}")
+    if not _is_within(workdir, settings["workspace"]):
+        raise TransportError(f"docker exec working directory escapes workspace: {workdir}")
+    command = args[index:]
+    if not command:
+        raise TransportError("docker exec is missing a command")
+    return detached, interactive, workdir, explicit_env, command
+
+
+def _cmd_exec(settings: dict[str, Any], args: list[str]) -> int:
+    state = _load_state(settings)
+    if not state.get("started"):
+        raise TransportError("synthetic container has not been started")
+    detached, interactive, workdir, explicit_env, command = _parse_exec_options(
+        settings, state, args
+    )
+
+    if command == ["sh", "-c", OFFICIAL_RESET_COMMAND]:
+        if detached or interactive or explicit_env:
+            raise TransportError("official workspace reset cannot use exec flags")
+        staging = settings["staging"]
+        if not staging.is_dir():
+            raise TransportError("workspace staging directory is missing")
+        _clear_directory(settings["workspace"], settings=settings)
+        _copy_contents(staging, settings["workspace"])
+        shutil.rmtree(staging)
+        return 0
+
+    environment = os.environ.copy()
+    environment.update(state.get("create_env", {}))
+    environment.update(explicit_env)
+
+    if detached:
+        process = subprocess.Popen(
+            command,
+            cwd=workdir,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        state.setdefault("detached_process_groups", []).append(process.pid)
+        _write_state(settings, state)
+        return 0
+
+    stdin = None if interactive else subprocess.DEVNULL
+    process = subprocess.Popen(
+        command,
+        cwd=workdir,
+        env=environment,
+        stdin=stdin,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate()
+    if stdout:
+        sys.stdout.buffer.write(stdout)
+        sys.stdout.buffer.flush()
+    if stderr:
+        sys.stderr.buffer.write(stderr)
+        sys.stderr.buffer.flush()
+    return process.returncode
+
+
+def _cmd_stop(settings: dict[str, Any], args: list[str]) -> int:
+    if len(args) != 1:
+        raise TransportError("docker stop expects exactly one container id")
+    state = _load_state(settings)
+    _check_container(state, args[0])
+    for process_group in state.get("detached_process_groups", []):
+        try:
+            if os.getpgid(process_group) == process_group:
+                os.killpg(process_group, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+    state["detached_process_groups"] = []
+    state["started"] = False
+    _write_state(settings, state)
+    print(args[0])
+    return 0
+
+
+def main() -> int:
+    settings: dict[str, Any] | None = None
+    argv = sys.argv[1:]
+    try:
+        settings = _settings()
+        if not argv:
+            raise TransportError("missing docker subcommand")
+        handlers = {
+            "images": _cmd_images,
+            "create": _cmd_create,
+            "start": _cmd_start,
+            "ps": _cmd_ps,
+            "cp": _cmd_cp,
+            "exec": _cmd_exec,
+            "stop": _cmd_stop,
+        }
+        handler = handlers.get(argv[0])
+        if handler is None:
+            raise TransportError(f"unsupported docker subcommand: {argv[0]}")
+        return_code = handler(settings, argv[1:])
+        _trace(settings, argv, "ok", return_code=return_code)
+        return return_code
+    except (TransportError, OSError, subprocess.SubprocessError) as exc:
+        if settings is not None:
+            _trace(settings, argv, "error", error=str(exc), return_code=125)
+        print(f"vision2web ClusterX transport: {exc}", file=sys.stderr)
+        return 125
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

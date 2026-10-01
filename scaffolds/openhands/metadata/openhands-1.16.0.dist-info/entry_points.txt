@@ -1,0 +1,3 @@
+[console_scripts]
+openhands = openhands_cli.entrypoint:main
+openhands-acp = openhands_cli.acp:main

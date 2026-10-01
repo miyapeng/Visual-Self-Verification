@@ -1,0 +1,37 @@
+
+.env
+__pycache__/
+**/__pycache__/
+node_modules/
+**/node_modules/
+# Ignore frontend subproject
+bolt-ui/
+
+# Ignore local server script
+server.py
+*.png
+*.csv
+experiment/*.png
+experiment/*.csv
+
+
+data/half*.jsonl
+
+experiment_results/
+src/data_generation/
+src/experiment_results/
+src/standalone_visual_logs/
+*.tar
+*.tar.gz
+
+!config*.yaml
+!README.md
+!.gitignore
+!.env.example
+!src/
+!data/
+!scripts/
+!Dockerfile
+!data/all.jsonl
+!data/test_mini.jsonl
+!data/part*.jsonl

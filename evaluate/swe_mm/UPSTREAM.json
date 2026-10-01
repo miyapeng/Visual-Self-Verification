@@ -1,0 +1,13 @@
+{
+  "name": "SWE-bench evaluator for SWE-MM",
+  "source_url": "https://github.com/SWE-bench/SWE-bench",
+  "source_commit": "7e578260da58400f307e435e43d1d2ab29d686f6",
+  "package_version": "5.0.0rc0",
+  "snapshot_method": "git archive HEAD",
+  "snapshot_date": "2026-08-13",
+  "upstream_file_count": 653,
+  "file_manifest": "UPSTREAM_FILES.sha256",
+  "file_manifest_sha256": "ed204d3ac791fa6f4d43b4f7aa4cad1cb07204a04c1b390a59ce5ecd28328e08",
+  "license": "MIT",
+  "evaluation_data": "data/swe_mm/dev/evaluator_private/instances.full.jsonl"
+}

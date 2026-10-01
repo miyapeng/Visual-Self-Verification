@@ -1,0 +1,119 @@
+[
+  {
+    "case_id": "webcompass-image-1-fortune-cookie",
+    "task": "Repair the provided Fortune Cookie website so that it implements both reference states. The initial page must show a clickable cookie. Clicking it must hide the initial state and reveal the complete fortune card with its quotation and lucky numbers. Clicking Get Another Fortune must return to the cookie state so the interaction can be repeated. Preserve the existing visual design. Do not modify the frozen checklist or verification artifacts.",
+    "program_path": "../../data/research/webcompass-image-1/source",
+    "plan_path": "webcompass_image_1_plan.json",
+    "task_image_paths": [
+      "../../data/research/webcompass-image-1/reference/initial.png",
+      "../../data/research/webcompass-image-1/reference/revealed.png"
+    ],
+    "metadata": {
+      "benchmark": "WebCompass",
+      "upstream_case": "test_output/image/1",
+      "task_type": "interactive repair derived from an official released example",
+      "known_initial_defect": "index.html references script.js but the released example directory does not contain it",
+      "oracle_predecessors": {
+        "initial_state": [],
+        "reveal_state": ["initial_state"],
+        "reset_state": ["reveal_state"]
+      }
+    }
+  },
+  {
+    "case_id": "webcompass-video-22-product-filters",
+    "task": "Verify and, only if necessary, repair the provided Luxury Beauty Products page so that it matches the released WebCompass video states and all existing filters work. On load it must render all 15 product cards. Under $50 must show exactly 2 products, selecting Chanel must show exactly 3 products, and Reset Filters must restore all 15 products. Preserve the existing visual design and product data. Do not modify the frozen checklist or verification artifacts.",
+    "program_path": "../../data/research/webcompass-video-22/source",
+    "plan_path": "webcompass_video_22_plan.json",
+    "task_image_paths": [
+      "../../data/research/webcompass-video-22/reference/initial.jpg",
+      "../../data/research/webcompass-video-22/reference/price-filter.jpg",
+      "../../data/research/webcompass-video-22/reference/high-price.jpg",
+      "../../data/research/webcompass-video-22/reference/reset.jpg"
+    ],
+    "metadata": {
+      "benchmark": "WebCompass",
+      "upstream_case": "test_output/video/Claude-Opus-4.5/22",
+      "task_type": "verifier-positive control from an official released example",
+      "known_initial_defect": null,
+      "oracle_predecessors": {
+        "initial_products": [],
+        "price_filter": ["initial_products"],
+        "brand_filter": ["initial_products"],
+        "reset_filters": ["price_filter", "brand_filter"]
+      }
+    }
+  },
+  {
+    "case_id": "webcompass-image-107-calendar",
+    "task": "Complete and repair the provided City of Guthrie site so that it preserves the three released reference screenshots and its calendar is functional. The homepage Calendar link must navigate to calendar.html. The calendar must render January 2026 day cells, the Next month control must advance the visible month to February, and the Next year control must advance the visible year to 2027. Supply the locally referenced CSS, JavaScript, and assets needed by the page without modifying the frozen checklist or verification artifacts.",
+    "program_path": "../../data/research/webcompass-image-107/source",
+    "plan_path": "webcompass_image_107_plan.json",
+    "task_image_paths": [
+      "../../data/research/webcompass-image-107/reference/home.png",
+      "../../data/research/webcompass-image-107/reference/index.png",
+      "../../data/research/webcompass-image-107/reference/calendar.png"
+    ],
+    "metadata": {
+      "benchmark": "WebCompass",
+      "upstream_case": "test_output/image/107",
+      "task_type": "interactive completion/repair derived from an official released example",
+      "known_initial_defect": "released example contains HTML and screenshots but omits the referenced css, js, and image files; the calendar day grid and controls are nonfunctional",
+      "oracle_predecessors": {
+        "homepage": [],
+        "calendar_navigation": ["homepage"],
+        "calendar_days": ["calendar_navigation"],
+        "calendar_controls": ["calendar_days"]
+      }
+    }
+  },
+  {
+    "case_id": "webcompass-video-22-independent-branches",
+    "task": "Repair the provided Luxury Beauty Products page while preserving its existing design and product data. On load it must render all 15 product cards. Under $50 must show exactly 2 products, selecting Chanel must show exactly 3 products, and Reset Filters must restore all 15 products. The price and brand interactions are independent requirements; do not modify the frozen checklist or verification artifacts.",
+    "program_path": "../../data/research/webcompass-video-22-independent/source",
+    "plan_path": "webcompass_video_22_plan.json",
+    "task_image_paths": [
+      "../../data/research/webcompass-video-22/reference/initial.jpg",
+      "../../data/research/webcompass-video-22/reference/price-filter.jpg",
+      "../../data/research/webcompass-video-22/reference/high-price.jpg",
+      "../../data/research/webcompass-video-22/reference/reset.jpg"
+    ],
+    "metadata": {
+      "benchmark": "WebCompass-derived controlled diagnostic",
+      "upstream_case": "test_output/video/Claude-Opus-4.5/22",
+      "task_type": "controlled independent-branch interaction repair",
+      "known_initial_defect": "two minimal injected faults independently break quick-price and brand filtering",
+      "mutation_oracle": "data/research/webcompass-video-22-independent/README.upstream.md",
+      "oracle_predecessors": {
+        "initial_products": [],
+        "price_filter": ["initial_products"],
+        "brand_filter": ["initial_products"],
+        "reset_filters": ["price_filter", "brand_filter"]
+      }
+    }
+  },
+  {
+    "case_id": "webcompass-video-83-diamond-wave",
+    "task": "Repair and complete the provided full-screen canvas page so that it recreates the released WebCompass video behavior. The canvas must visibly render a dense cyan, blue, purple, and magenta diamond-wave field resembling the three reference frames, and the rendered pixels must continuously change over time. Preserve the existing accessible page shell and reduced-motion behavior. The released page references a missing script.js; create the smallest self-contained local implementation without external network dependencies. Do not modify the frozen checklist or verification artifacts.",
+    "program_path": "../../data/research/webcompass-video-83/source",
+    "plan_path": "webcompass_video_83_plan.json",
+    "task_image_paths": [
+      "../../data/research/webcompass-video-83/reference/frame_0001.jpg",
+      "../../data/research/webcompass-video-83/reference/frame_0015.jpg",
+      "../../data/research/webcompass-video-83/reference/frame_0030.jpg"
+    ],
+    "metadata": {
+      "benchmark": "WebCompass",
+      "upstream_case": "test_output/video/Claude-Opus-4.5/83",
+      "task_type": "temporal visual completion/repair derived from an official released example",
+      "known_initial_defect": "released HTML references missing script.js, leaving the canvas transparent and static",
+      "provenance": "data/research/webcompass-video-83/README.upstream.md",
+      "oracle_predecessors": {
+        "canvas_surface": [],
+        "canvas_pixels": ["canvas_surface"],
+        "visual_structure": ["canvas_pixels"],
+        "temporal_motion": ["canvas_pixels", "visual_structure"]
+      }
+    }
+  }
+]

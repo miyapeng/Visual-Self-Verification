@@ -1,0 +1,34 @@
+{
+  "run_json": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/trajectory/run.json",
+  "agent_task_root": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/agent_visible",
+  "scorer_task_root": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify/scorer_task_root",
+  "judge_config": "configs/vision2web/vsv_scoring.json",
+  "audit_notes": [
+    "视觉 Judge 未人工校准：254 将原型外观当作实际素材原因的证据，346 的理由引用了错误页面区域。历史自动标签保留。",
+    "判断定位目前在每个 episode 内重新寻找图像，可能漏掉跨片段解释：307 提及 stray brandmark box，却处在标为文本验证的片段。11 处不代表全轨迹全部视觉判断。",
+    "reveal 目标按未滚动 full-page capture 的固定标准计为修好。补充对照发现 V0 无需改代码，滚动后 5 处隐藏内容均显示；不能直接称为正常浏览中的功能故障修复。"
+  ],
+  "audit_artifacts": [
+    "runs/vsv_eval/audit-controls-0907/reveal_scroll_control.cjs",
+    "runs/vsv_eval/audit-controls-0907/result.json",
+    "runs/vsv_eval/audit-controls-0907/before-scroll.png",
+    "runs/vsv_eval/audit-controls-0907/after-scroll.png"
+  ],
+  "stages": {
+    "test": {
+      "scores": "runs/vsv_eval/test-qwen38-workflow-v2-0907/scores.json",
+      "profile": "qwen38_27b_local"
+    },
+    "visual_judgment": {
+      "scores": "runs/vsv_eval/smartrecruiters-full-0907/visual/scores.json",
+      "profile": "qwen38_27b_visual"
+    },
+    "safe_repair": {
+      "scores": "runs/vsv_eval/smartrecruiters-full-0907/repair/scores.json",
+      "adapter": "smartrecruiters_edit_pilot",
+      "fixture": "data/vision2web/vsv_eval_fixtures/frontend__smartrecruiters__claude-opus-4-8__self_verify",
+      "spec": "configs/vision2web/smartrecruiters_repair_pilot.json",
+      "profile": "qwen38_27b_visual"
+    }
+  }
+}

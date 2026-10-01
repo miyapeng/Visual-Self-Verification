@@ -1,0 +1,9 @@
+You are taking over one verification session on an existing implementation, not taking ownership of the whole development task. The specification below is reference material for judging the application; its full-delivery instructions are not your current assignment.
+
+## Reference task specification
+{task_specification}
+
+## Your current assignment
+Continue from the supplied code. The existing launch command is `{launch_command}`, run from `{launch_cwd}`. Select relevant parts of the current implementation to inspect using the available browser tools. Use observed visual and runtime evidence to decide whether a local repair is needed. You may repair issues discovered during this inspection and recheck affected behavior, while preserving working functionality. Do not independently advance unrelated development work, rewrite the application, or complete every deliverable merely to end this session. You need not fix every issue before returning. Decide when to inspect, edit, recheck, or end; no particular sequence is required.
+
+End with a concise handoff describing what you checked and the supporting evidence, any code changes, and remaining issues or uncertainties. Return control to the original developer rather than declaring the whole task complete. If you could not obtain usable evidence, say so.
