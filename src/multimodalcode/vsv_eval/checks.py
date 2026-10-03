@@ -174,7 +174,7 @@ REQUIRED CITATION FORMAT:
 Return exactly:
 {{"status":"reasonable|partial|unreasonable|not_evaluable","requirement":"...","requirement_source":"task|workflow|unknown","requirement_quote":"...","reason":"...","evidence_ordinals":[{group['action_ordinal']}],"needs_visual_review":false,"matches":[]}}
 If supported, add matches with fields workflow_id, coverage (full or partial), evidence_ordinals, reason, following the citation rules above.
-Write requirement and reasons in concise Chinese; retain exact English requirement quotes, enum values, and IDs.
+Write requirements and reasons in concise English. Preserve requirement quotes, enum values, and IDs exactly.
 """
 
 
@@ -253,7 +253,7 @@ full = all required actions and observations (including specified branches) are 
 For each workflow, check BOTH its actions AND every entry in validations. An observed destination URL does not cover a validation requiring visible plans, company information, or other page content. In that case navigation alone is partial, not full. A later screenshot/state inspection in the same connected execution can cover the content inspection without you judging its pixels. In the reason for full, explain how the cited observations cover the validations; do not silently reduce the workflow to its objective or URL. If validations is empty, do not invent extra content checks.
 Opening a destination URL or taking its screenshot alone does NOT partially cover a workflow that requires clicking, filtering, searching, or navigation through controls. Such setup/appearance-only evidence is uncovered for that workflow. Count partial only when a required behavioral substep was actually exercised and its effect observed; screenshot-taking can still be a reasonable visual check of the original task.
 Every full/partial item needs evidence_chains: each chain is an ordered list of original action AND paired observation ordinals. A chain must represent a connected execution on one program version. Do not bridge code edits, browser/session resets, failed attempts, or unrelated routes. Ordinary navigation within a workflow is allowed. Separate independent attempts/branches into separate chains; never stitch an action from before a repair to a successful screenshot after it. A workflow requiring separate reset branches may cite several complete branch chains.
-Return every group_id and every workflow_id exactly once. Group citations include its own action and only its paired observations. Copy a contiguous exact task/workflow excerpt into requirement_quote. Cite source event IDs, never invent actions or images. Explain in concise Chinese.
+Return every group_id and every workflow_id exactly once. Group citations include its own action and only its paired observations. Copy a contiguous exact task/workflow excerpt into requirement_quote. Cite source event IDs, never invent actions or images. Explain in concise English.
 Return JSON:
 {"groups":[{"group_id":"...","status":"reasonable|partial|unreasonable|not_evaluable","requirement":"...","requirement_source":"task|workflow|unknown","requirement_quote":"exact excerpt","reason":"...","evidence_ordinals":[1],"needs_visual_review":false}],
 "coverage":[{"workflow_id":"0.0","status":"full|partial|uncovered|unknown","evidence_chains":[[1,2,3,4]],"reason":"..."}]}

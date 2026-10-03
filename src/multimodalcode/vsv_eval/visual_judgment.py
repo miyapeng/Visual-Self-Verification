@@ -203,7 +203,7 @@ Only this prefix is available. Never assume unseen earlier code was absent from 
 No subsequent action or successful repair is provided or may be imagined. If there is only a plan and no identifiable interpretation, set judgment_present=false and assessment=insufficient_evidence.
 Assessments: correct = substantive claims supported; partially_correct = supported components mixed with contradicted/unverifiable components (explain which); incorrect = substantive claim contradicted by evidence; insufficient_evidence = cannot determine reliably. Do not score unmentioned/missed bugs or coverage.
 Cite evidence_ordinals from actual action/observation events strictly before judgment_ordinal, never policy text as proof. Non-insufficient results require at least one such citation. Explain which evidence supports which part and what remains unknown. Do not rewrite the original policy quote.
-Return exactly {"judgment_present":true,"assessment":"correct|partially_correct|incorrect|insufficient_evidence","evidence_ordinals":[integer],"reason":"concise Chinese explanation"}.
+Return exactly {"judgment_present":true,"assessment":"correct|partially_correct|incorrect|insufficient_evidence","evidence_ordinals":[integer],"reason":"concise English explanation"}.
 EVIDENCE PACKET:
 """ + json.dumps(evidence, ensure_ascii=False, indent=2)
 
@@ -297,7 +297,7 @@ def score_visual_trajectory(run_json, task_root, output, client=None, episode_id
 
 
 def write_visual_html(result, path):
-    labels = {"correct": "正确", "partially_correct": "部分正确", "incorrect": "错误", "insufficient_evidence": "证据不足"}
+    labels = {"correct": "Correct", "partially_correct": "Partially correct", "incorrect": "Incorrect", "insufficient_evidence": "Insufficient evidence"}
     sections = []
     for episode in result["episodes"]:
         for row in episode["visual_judgment"]["judgments"]:
@@ -311,11 +311,11 @@ def write_visual_html(result, path):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if not target.exists():
                     shutil.copyfile(source, target)
-                role = "参考原型" if image["kind"] == "reference_prototype" else f"原模型收到的页面图 · 事件 {image['ordinal']}"
-                caption = html.escape(f"图 {image.get('attachment_index', '')} · {role}")
+                role = "Reference prototype" if image["kind"] == "reference_prototype" else f"Application image received by the model · event {image['ordinal']}"
+                caption = html.escape(f"Image {image.get('attachment_index', '')} · {role}")
                 figures.append(f'<figure><figcaption>{caption}</figcaption><a href="assets/{name}"><img style="max-width:260px;max-height:650px" src="assets/{name}"></a></figure>')
             pictures = ''.join(figures)
-            sections.append(f'<section><h2>判断事件 {row["judgment_ordinal"]}</h2><h3>1. 输入证据</h3><div style="display:flex;flex-wrap:wrap">{pictures}</div><details><summary>完整局部输入：动作、代码与运行反馈（不含未来事件）</summary><pre>{html.escape(json.dumps(packet, ensure_ascii=False, indent=2))}</pre></details><h3>2. 原模型的判断原话</h3><blockquote>{html.escape(row["policy_quote"])}</blockquote><h3>3. Judge 评估：{labels[row["assessment"]]}</h3><p>{html.escape(row["reason"])}</p><p>依据事件：{row["evidence_ordinals"]}</p></section>')
-    document = '<!doctype html><meta charset="utf-8"><title>Visual Judgment pilot</title><style>body{font:16px/1.6 system-ui;margin:30px;max-width:1200px}section{border-top:1px solid #ccc}pre{white-space:pre-wrap;overflow-wrap:anywhere}blockquote{background:#f5f5f5;padding:15px}</style><h1>Visual Judgment：证据 → 模型判断 → 评估</h1><p>只评判断，不评动作覆盖或最终修复。模型结论尚需人工校准。</p>'
-    document += f'<p>原模型：{html.escape(str(result.get("policy_model")))}；Judge：{html.escape(str(result.get("judge_model")))}；抽评位置：{html.escape(str(result.get("selected_ordinals")))}</p>' + ''.join(sections)
+            sections.append(f'<section><h2>Judgment event {row["judgment_ordinal"]}</h2><h3>1. Evidence</h3><div style="display:flex;flex-wrap:wrap">{pictures}</div><details><summary>Local input: actions, code, and tool results available before the judgment</summary><pre>{html.escape(json.dumps(packet, ensure_ascii=False, indent=2))}</pre></details><h3>2. Recorded model judgment</h3><blockquote>{html.escape(row["policy_quote"])}</blockquote><h3>3. Judge assessment: {labels[row["assessment"]]}</h3><p>{html.escape(row["reason"])}</p><p>Evidence events: {row["evidence_ordinals"]}</p></section>')
+    document = '<!doctype html><html lang="en"><meta charset="utf-8"><title>Visual Judgment pilot</title><style>body{font:16px/1.6 system-ui;margin:30px;max-width:1200px}section{border-top:1px solid #ccc}pre{white-space:pre-wrap;overflow-wrap:anywhere}blockquote{background:#f5f5f5;padding:15px}</style><h1>Visual Judgment: evidence, model judgment, and assessment</h1><p>This report evaluates expressed judgments. Action coverage and repair outcomes are assessed separately. Judge calibration is pending.</p>'
+    document += f'<p>Coding agent: {html.escape(str(result.get("policy_model")))}; Judge: {html.escape(str(result.get("judge_model")))}; Selected events: {html.escape(str(result.get("selected_ordinals")))}</p>' + ''.join(sections)
     Path(path).write_text(document, encoding="utf-8")

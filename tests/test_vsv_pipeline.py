@@ -38,7 +38,7 @@ def test_three_completed_stages_integrate_without_network_or_replay(tmp_path, mo
     assert card["J"]["score"] == pytest.approx(100 * 8 / 11)
     assert card["R"]["score"] == 60
     assert card["regression"]["score"] == 0
-    assert "百分制分项记录" in (output / "index.html").read_text()
+    assert "Metrics (0–100)" in (output / "index.html").read_text()
     assert len(result["episodes"][0]["test"]) == 6  # no retrospective split into artificial scenarios
     assert (output / "manifest.json").is_file() and (output / "index.html").is_file()
     before = sha256(output / "scores.json")

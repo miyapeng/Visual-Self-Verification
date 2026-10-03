@@ -10,13 +10,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from multimodalcode.io import write_json  # noqa: E402
-from multimodalcode.vsv_eval.episodes import extract_episodes  # noqa: E402
+from multimodalcode.io import read_json, write_json  # noqa: E402
+from multimodalcode.vsv_eval.episodes import (  # noqa: E402
+    extract_candidate_windows, extract_episodes, extract_verification_rounds, verification_round_summary,
+)
 from multimodalcode.vsv_eval.judge import (  # noqa: E402
     build_client,
     load_judge_config,
 )
-from multimodalcode.vsv_eval.scoring import score_trajectory  # noqa: E402
 
 
 STAGES = (
@@ -39,7 +40,7 @@ def build_stage_clients(config, override, cache_root, mapping_key):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Offline Vision2Web VSV scoring")
+    parser = argparse.ArgumentParser(description="Extract verification rounds or score recorded Vision2Web checks.")
     parser.add_argument("--run-json", type=Path, required=True)
     parser.add_argument("--task-root", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -55,7 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--audit-profile")
     parser.add_argument("--replay-results", type=Path)
     parser.add_argument("--max-episode-images", type=int, default=8)
-    parser.add_argument("--extract-only", action="store_true")
+    parser.add_argument("--extract-only", action="store_true", help="Extract all visual/nonvisual check rounds and references; --offline emits unfiltered candidates")
+    parser.add_argument("--verification-max-input-chars", type=int, default=240000, help="Per-batch text budget for verification annotation, including complete calls and context")
     parser.add_argument("--test-only", action="store_true", help="Evaluate recorded execution and check reasonableness only; no replay")
     parser.add_argument("--visual-only", action="store_true", help="Evaluate time-bounded visual judgments only; no Test/workflow/replay")
     parser.add_argument("--judgment-ordinals", nargs="+", type=int, help="Visual-only smoke subset; still require automatic location")
@@ -75,13 +77,54 @@ def main() -> int:
         raise ValueError("--judgment-ordinals requires --visual-only")
     if args.test_visual_profile:
         print("Note: --test-visual-profile is ignored; Test does not judge page appearance.", file=sys.stderr)
-    extracted = extract_episodes(args.run_json)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if args.extract_only:
-        write_json(args.output_dir / "episodes.json", extracted)
-        print(json.dumps({"episodes": extracted["episode_count"], "output": str(args.output_dir / 'episodes.json')}))
+        windows = extract_candidate_windows(args.run_json)
+        run = read_json(args.run_json)
+        result = {
+            "schema": "multimodalcode-verification-windows-1",
+            "source_run": str(args.run_json.resolve()),
+            **{key: run.get(key) for key in ("case_id", "model", "framework", "mode", "raw_links")},
+            "development_root": (run.get("development") or {}).get("root"),
+            "versions": (run.get("result") or {}).get("versions"),
+            "workspace_artifact": (run.get("result") or {}).get("workspace_artifact"),
+            "filter_status": "rule_candidates_only",
+            "candidate_count": len(windows),
+            "window_count": len(windows),
+            "keep_ids": None,
+            "windows": windows,
+        }
+        output = args.output_dir / "candidate_windows.json"
+        write_json(output, result)
+        summary = {"candidates": len(windows), "retained": None}
+        if not args.offline:
+            config = load_judge_config(args.config)
+            profile = args.primary_profile or config["primary_stage_profiles"]["verification_annotation"]
+            judge = build_client(config, profile, args.output_dir / "judge_cache/verification_annotation")
+            result = extract_verification_rounds(args.run_json, judge, max_input_chars=args.verification_max_input_chars)
+            output = args.output_dir / "verification_rounds.json"
+            write_json(output, result)
+            write_json(args.output_dir / "model_annotations.json", result["annotation"])
+            for filename, subset, use in (
+                ("visual_verification_rounds.json", [e for e in result["episodes"] if e["verification_kind"] == "visual"], "visual_scoring_input"),
+                ("other_verification_rounds.json", [e for e in result["episodes"] if e["verification_kind"] != "visual"], "record_only"),
+            ):
+                write_json(args.output_dir / filename, {
+                    **result, "episodes": subset, **verification_round_summary(subset),
+                    "source_rounds": str(output.resolve()), "intended_use": use,
+                })
+            summary.update(retained=sum(len(e["candidate_ids"]) for e in result["episodes"]), episodes=result["episode_count"],
+                           image_episodes=result["image_episode_count"], image_inputs=result["image_input_count"],
+                           visual_attempts_without_image=result["visual_attempt_without_image_count"],
+                           non_visual_episodes=result["non_visual_episode_count"],
+                           mixed_evidence_episodes=result["mixed_evidence_episode_count"],
+                           annotation_batches=len(result["annotation"]["batches"]))
+        print(json.dumps({**summary, "status": result.get("annotation_status", result.get("filter_status")), "output": str(output)}))
         return 0
 
+    from multimodalcode.vsv_eval.scoring import score_trajectory
+
+    extracted = extract_episodes(args.run_json)
     task_root = (args.task_root or infer_task_root(args.run_json, extracted["case_id"])).resolve()
     if args.visual_only:
         from multimodalcode.vsv_eval.visual_judgment import score_visual_trajectory

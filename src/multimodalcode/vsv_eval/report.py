@@ -46,22 +46,22 @@ def write_html_report(result: dict[str, Any], path: str | Path) -> None:
                 f"<tr><td>{html.escape(group['group_id'])}</td>"
                 f"<td>{html.escape(execution['status'])}<br>{html.escape(execution['reason'])}</td>"
                 f"<td>{html.escape(judgment['status'])}<br>{html.escape(judgment.get('reason') or '')}</td>"
-                f"<td><details><summary>Action / 动作</summary><pre>{html.escape(json.dumps(group['action'], ensure_ascii=False, indent=2))}</pre></details>"
-                f"<details><summary>Observations / 反馈</summary><pre>{html.escape(json.dumps(evidence, ensure_ascii=False, indent=2))}</pre></details>"
-                f"<details><summary>Requirement / 需求与依据</summary><pre>{html.escape(json.dumps(judgment, ensure_ascii=False, indent=2))}</pre></details></td></tr>"
+                f"<td><details><summary>Action</summary><pre>{html.escape(json.dumps(group['action'], ensure_ascii=False, indent=2))}</pre></details>"
+                f"<details><summary>Observations</summary><pre>{html.escape(json.dumps(evidence, ensure_ascii=False, indent=2))}</pre></details>"
+                f"<details><summary>Requirement and evidence</summary><pre>{html.escape(json.dumps(judgment, ensure_ascii=False, indent=2))}</pre></details></td></tr>"
             )
     aggregate = html.escape(
         json.dumps(result.get("aggregate") or {}, ensure_ascii=False, indent=2)
     )
     coverage = ((result.get("aggregate") or {}).get("test") or {}).get("workflow_coverage") or {}
     ratio = coverage.get("rate")
-    percentage = f"{ratio:.1%}" if ratio is not None else "待评"
+    percentage = f"{ratio:.1%}" if ratio is not None else "not evaluated"
     coverage_rows = []
-    labels = {"full": "完整覆盖", "partial": "仅部分覆盖", "uncovered": "未覆盖", "unknown": "待确认"}
+    labels = {"full": "Full", "partial": "Partial", "uncovered": "Uncovered", "unknown": "Unknown"}
     for item in coverage.get("items") or []:
         coverage_rows.append(
             f"<tr><td>{html.escape(item['workflow_id'])}</td><td>{html.escape(item['objective'])}</td>"
-            f"<td>{labels[item['status']]}</td><td><details><summary>对应调用与证据</summary>"
+            f"<td>{labels[item['status']]}</td><td><details><summary>Calls and evidence</summary>"
             f"<pre>{html.escape(json.dumps(item['evidence'], ensure_ascii=False, indent=2))}</pre></details></td></tr>"
         )
     document = f"""<!doctype html>
@@ -73,15 +73,15 @@ th{{background:#f4f6fa;text-align:left}}code,pre{{background:#f4f6fa}}pre{{paddi
 </style></head><body>
 <h1>Visual Self-Verification evaluation</h1>
 <p>Case: <code>{html.escape(str(result.get('case_id')))}</code> · Model: {html.escape(str(result.get('model')))}</p>
-<h2>Test 整体 workflow 覆盖率</h2>
-<p>完整覆盖：{_value(coverage.get('numerator'))} / {_value(coverage.get('denominator'))}（{percentage}）；仅部分覆盖：{_value(coverage.get('partial_only_count'))} 项。
-{'尚有待评项，当前仅为已确认覆盖下界。' if coverage.get('is_lower_bound') else '所有调用已完成结构校验；语义判断仍需人工抽查。'}</p>
-<p>范围：{'所选片段' if result.get('episode_filter') else '当前轨迹切出的全部检查片段'}。按 workflow ID 去重；部分覆盖不折算成半分，不将不同版本的零散操作拼成完整覆盖。覆盖不代表功能通过。</p>
-<table><thead><tr><th>Workflow</th><th>目标</th><th>覆盖状态</th><th>证据</th></tr></thead><tbody>{''.join(coverage_rows)}</tbody></table>
+<h2>Test: workflow coverage</h2>
+<p>Full coverage: {_value(coverage.get('numerator'))} / {_value(coverage.get('denominator'))} ({percentage}); partial only: {_value(coverage.get('partial_only_count'))} items.
+{'Some items remain unassessed; this is a confirmed lower bound.' if coverage.get('is_lower_bound') else 'All calls passed structural validation. Semantic judgments still need manual review.'}</p>
+<p>Scope: {'selected episodes' if result.get('episode_filter') else 'all extracted checks in this trajectory'}. Coverage is deduplicated by workflow ID. Partial coverage receives no fractional credit. Actions from different program versions cannot form one complete evidence chain. Coverage records exercised behavior, not functional correctness.</p>
+<table><thead><tr><th>Workflow</th><th>Objective</th><th>Coverage</th><th>Evidence</th></tr></thead><tbody>{''.join(coverage_rows)}</tbody></table>
 <table><thead><tr><th>Episode</th><th>Recorded execution</th><th>Covered workflow</th><th>Visual judgment</th><th>Safe repair</th><th>Evidence</th></tr></thead>
 <tbody>{''.join(rows)}</tbody></table>
-<h2>Test: action groups / 逐组检查</h2>
-<table><thead><tr><th>Group</th><th>Execution / 执行</th><th>Reasonableness / 合理性</th><th>Evidence / 依据</th></tr></thead><tbody>{''.join(check_rows)}</tbody></table>
+<h2>Test: action groups</h2>
+<table><thead><tr><th>Group</th><th>Execution</th><th>Reasonableness</th><th>Evidence</th></tr></thead><tbody>{''.join(check_rows)}</tbody></table>
 <h2>Aggregate</h2><pre>{aggregate}</pre>
 </body></html>"""
     target = Path(path)

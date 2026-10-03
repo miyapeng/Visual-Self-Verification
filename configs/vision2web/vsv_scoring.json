@@ -1,6 +1,9 @@
 {
   "schema": "multimodalcode-vsv-judge-config-1",
   "primary_stage_profiles": {
+    "verification_annotation": "qwen38_27b_local",
+    "verification_filter": "qwen35_35b_local",
+    "verification_grouping": "qwen35_35b_local",
     "workflow_alignment": "qwen35_35b_local",
     "visual_judgment": "qwen38_27b_visual",
     "repair_scope": "qwen35_35b_local",

@@ -63,45 +63,45 @@ def main():
         return f'<details><summary>{esc(title)}</summary><pre>{esc(json.dumps(value, ensure_ascii=False, indent=2))}</pre></details>'
     def image(path, label):
         return f'<figure><figcaption>{esc(label)}</figcaption><a href="{rel(path)}"><img loading="lazy" src="{rel(path)}"></a></figure>'
-    parts = ['<!doctype html><html lang="zh"><meta charset="utf-8"><title>SmartRecruiters 三阶段评测</title>',
+    parts = ['<!doctype html><html lang="en"><meta charset="utf-8"><title>SmartRecruiters evaluation report</title>',
              '<style>body{font:16px/1.65 system-ui;margin:32px;max-width:1200px;color:#182433}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}.images{display:flex;flex-wrap:wrap}img{max-width:260px;max-height:560px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6fa;padding:12px}section{border-top:1px solid #ddd;margin-top:24px}summary{cursor:pointer}figure{margin:12px}</style>',
-             '<h1>SmartRecruiters：Test → Visual Judgment → Safe Repair</h1>',
-             '<p>Claude Opus 4.8 / Claude Code / 历史 self_verify。Qwen3.8-27B 作为离线 Judge。研究评测，不是官方 benchmark 分数；自动结论待人工校准。</p>']
+             '<h1>SmartRecruiters: Test → Visual Judgment → Safe Repair</h1>',
+             '<p>Claude Opus 4.8 / Claude Code / recorded self_verify run. Qwen3.8-27B serves as the offline Judge. These research metrics are separate from official benchmark scores. Automatic assessments need manual calibration.</p>']
     t = summary['test']; coverage = t['workflow_coverage']
-    parts.append(f'<h2>1. Test：检查是否合理</h2><p>{t["action_group_count"]} 组调用；执行情况 {esc(str(t["execution_counts"]))}；合理性 {esc(str(t["reasonableness_counts"]))}。完整 workflow 覆盖 {coverage["numerator"]}/{coverage["denominator"]}，另 {coverage["partial_only_count"]} 项部分覆盖。覆盖不代表功能通过。</p>')
+    parts.append(f'<h2>1. Test</h2><p>{t["action_group_count"]} action groups. Execution: {esc(str(t["execution_counts"]))}; Reasonableness: {esc(str(t["reasonableness_counts"]))}. Full workflow coverage: {coverage["numerator"]}/{coverage["denominator"]}; {coverage["partial_only_count"]} items have partial coverage. Coverage records exercised behavior, not functional correctness.</p>')
     for episode in test['episodes']:
         for group in episode['test']['groups']:
-            parts.append(detail(f'原动作 {group["action_ordinal"]}：{group["reasonableness"]["status"]}',
+            parts.append(detail(f'Recorded action {group["action_ordinal"]}: {group["reasonableness"]["status"]}',
                         {k: group[k] for k in ('action','execution','reasonableness')}))
-    parts.append('<h2>2. Visual Judgment：模型对反馈的判断</h2>')
-    parts.append(f'<p>{esc(json.dumps(visual["summary"],ensure_ascii=False))}</p><p><a href="visual/index.html">打开逐项输入图片、原话与 Judge 理由</a>。254 的因果证据及 346 的区域引用仍有疑点，自动“正确”不代表人工确认。</p>')
-    parts.append('<h2>3. Safe Repair：重放后，目标问题是否解决</h2><p>四个代码版本，三段连续修复，五个目标判断。图片都是本轮离线重放结果，不是补入原模型上下文的图片。</p>')
-    labels = {'fixed':'已修复','not_fixed':'未修复','no_reproduced_failure':'修改前未复现问题','regression':'出现回归','insufficient_evidence':'证据不足'}
+    parts.append('<h2>2. Visual Judgment</h2>')
+    parts.append(f'<p>{esc(json.dumps(visual["summary"],ensure_ascii=False))}</p><p><a href="visual/index.html">View evidence images, model quotes, and Judge explanations</a>. The causal evidence at event 254 and the region reference at event 346 still need review. Automatic labels have not been independently confirmed.</p>')
+    parts.append('<h2>3. Safe Repair</h2><p>Four code versions, three repair transitions, and five target assessments. The images come from offline replay and were not part of the original agent context.</p>')
+    labels = {'fixed':'Fixed','not_fixed':'Not fixed','no_reproduced_failure':'No reproduced failure before modification','regression':'Regression','insufficient_evidence':'Insufficient evidence'}
     for row in repair['targets']:
         packet = read_json(out / 'repair/inputs' / (row['id'] + '.json'))
         verdict = ((row.get('judge') or {}).get('parsed') or {})
-        parts.append(f'<section><h3>{esc(row["id"])}：{row["before"]} → {row["after"]} · {labels[row["outcome"]]}</h3><p>{esc(row["expectation"])}</p><div class="images">')
-        for p, label in zip(packet['images'], ['原型要求', row['before']+' 修复前', row['after']+' 修复后']):
+        parts.append(f'<section><h3>{esc(row["id"])}: {row["before"]} → {row["after"]} · {labels[row["outcome"]]}</h3><p>{esc(row["expectation"])}</p><div class="images">')
+        for p, label in zip(packet['images'], ['Reference prototype', row['before']+' before repair', row['after']+' after repair']):
             parts.append(image(p, label))
-        parts.append('</div><p>' + esc(verdict.get('reason') or 'Judge 尚未提供有效结果') + '</p>')
-        parts.append(detail('原始 Judge 输出', verdict) + '</section>')
-    parts.append('<h3>相关功能回归</h3><p>五组原始 JS 检查在各版本重新运行，以修改前实际通过者作为基线；属于评测方的回归测试，不冒充原 Agent 主动复查。</p>')
+        parts.append('</div><p>' + esc(verdict.get('reason') or 'No valid Judge assessment') + '</p>')
+        parts.append(detail('Recorded Judge response', verdict) + '</section>')
+    parts.append('<h3>Functional regression checks</h3><p>Five recorded JavaScript checks are rerun on each version, using checks that passed before modification as the baseline. These are evaluator-run regression tests, separate from the agent’s recorded rechecks.</p>')
     for row in repair['regressions']:
-        parts.append(detail(row['before']+' → '+row['after']+'：'+row['status'], row))
-    parts.append('<h3>逐步动作与截图</h3><p>函数体取自原事件 299/302/305/310/313。新增 route reset 和逐步截图会改变运行时序；不能声称与历史 CLI 逐字节一致。</p>')
+        parts.append(detail(row['before']+' → '+row['after']+': '+row['status'], row))
+    parts.append('<h3>Actions and screenshots</h3><p>Function bodies come from events 299, 302, 305, 310, and 313. Added route resets and step screenshots change execution timing; this replay is not an exact reproduction of the historical CLI run.</p>')
     for version, path in repair['replays'].items():
         replayed = read_json(path)
-        parts.append(f'<details><summary>{version}：代码与 5 组动作</summary><p><a href="repair/versions/{version}/manifest.json">代码版本清单</a></p>')
+        parts.append(f'<details><summary>{version}: Code and five action groups</summary><p><a href="repair/versions/{version}/manifest.json">Code version manifest</a></p>')
         for check in replayed['checks']:
-            parts.append(f'<details><summary>{esc(check["name"])} · 原事件 {check["source_ordinal"]} · 断言 {check.get("passed")}</summary>')
-            parts.append(detail('原函数及最终输出', {k:check.get(k) for k in ('source_function','output','error')}))
+            parts.append(f'<details><summary>{esc(check["name"])} · Source event {check["source_ordinal"]} · Assertion result {check.get("passed")}</summary>')
+            parts.append(detail('Recorded function and replay output', {k:check.get(k) for k in ('source_function','output','error')}))
             for step in check['steps']:
                 parts.append(f'<p>{esc(step["action"])} {esc(str(step["args"]))} → {esc(step["status"])}</p>')
                 if step.get('observation'):
                     parts.append(image(step['observation']['screenshot'], step['observation']['url']))
             parts.append('</details>')
         parts.append('</details>')
-    parts.append('<h2>范围与限制</h2>' + detail('完整记录',summary) + '</html>')
+    parts.append('<h2>Scope and limitations</h2>' + detail('Full results',summary) + '</html>')
     (out / 'index.html').write_text(''.join(parts))
     print(out / 'index.html')
 

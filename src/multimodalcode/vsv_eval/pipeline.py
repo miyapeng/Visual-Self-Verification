@@ -340,15 +340,15 @@ def write_summary_html(result, destination):
     for name, stage in result["stages"].items():
         link = ""
         if stage.get("artifact"):
-            link = f'<a href="{esc(os.path.relpath(stage["artifact"], destination.parent))}">原始逐项结果</a>'
+            link = f'<a href="{esc(os.path.relpath(stage["artifact"], destination.parent))}">Detailed stage results</a>'
         rows.append(f'<h2>{esc(name)} · {esc(stage["status"])}</h2>{link}<pre>{esc(json.dumps(stage.get("summary", stage), ensure_ascii=False, indent=2))}</pre>')
-    text = '<!doctype html><html lang="zh"><meta charset="utf-8"><title>VSV 三阶段统一结果</title><style>body{font:16px/1.6 system-ui;max-width:1000px;margin:32px auto;padding:0 20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f6f7;padding:16px}</style>'
+    text = '<!doctype html><html lang="en"><meta charset="utf-8"><title>VSV evaluation summary</title><style>body{font:16px/1.6 system-ui;max-width:1000px;margin:32px auto;padding:0 20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f6f7;padding:16px}</style>'
     text += f'<h1>{esc(result["case_id"])}</h1><p>{esc(result["model"])} / {esc(result["framework"])} / {esc(result["mode"])}</p>'
-    text += '<p>这是离线研究诊断，不是 Vision2Web 官方得分。complete 仅指三个计算阶段完成；Judge 未经人工校准。三个不同分母的指标不合成总分。</p>'
+    text += '<p>This report contains offline research diagnostics, not official Vision2Web scores. Completion means all three stages ran. Judge calibration is pending. Metrics are reported separately because their denominators differ.</p>'
     if result.get("scorecard"):
-        labels = {"T": "有效且合理的检查 ↑", "C": "workflow 覆盖 ↑", "J": "严格视觉判断正确率 ↑",
-                  "R": "安全修复率 ↑", "regression": "已测版本转换回归率 ↓"}
-        text += '<h2>百分制分项记录</h2><table><tr><th>指标</th><th>分数 / 100</th><th>分子 / 分母</th><th>阶段状态</th></tr>'
+        labels = {"T": "Executed, reasonable checks ↑", "C": "Workflow coverage ↑", "J": "Strict visual judgment accuracy ↑",
+                  "R": "Safe repair rate ↑", "regression": "Observed regression rate across tested transitions ↓"}
+        text += '<h2>Metrics (0–100)</h2><table><tr><th>Metric</th><th>Score / 100</th><th>Numerator / denominator</th><th>Stage status</th></tr>'
         for key, label in labels.items():
             entry = result["scorecard"][key]
             score = '—' if entry['score'] is None else f'{entry["score"]:.2f}'
@@ -356,6 +356,6 @@ def write_summary_html(result, destination):
             if key == 'C' and entry.get('is_lower_bound') and entry['score'] is not None:
                 score = '≥ ' + score
             text += f'<tr><td>{esc(key + " · " + label)}</td><td>{score}</td><td>{fraction}</td><td>{esc(entry["stage_status"])}</td></tr>'
-        text += '</table><p>“—”表示未获得数值，不是 0 分。partial 表示阶段未完整评估；排除数量及原因保留在 JSON 和下方明细。这里仅换算原始标签，未重新调用 Judge，也未把旧协议分数标作新协议。</p>'
-    text += ''.join(rows) + '<h2>限制</h2><ul>' + ''.join(f'<li>{esc(s)}</li>' for s in result['limitations']) + '</ul></html>'
+        text += '</table><p>An em dash marks an unavailable value. A partial stage has incomplete assessment; exclusions and their reasons appear in the JSON and details below. Percentages are computed from the recorded labels under their original protocols, without new Judge calls.</p>'
+    text += ''.join(rows) + '<h2>Limitations</h2><ul>' + ''.join(f'<li>{esc(s)}</li>' for s in result['limitations']) + '</ul></html>'
     destination.write_text(text, encoding="utf-8")

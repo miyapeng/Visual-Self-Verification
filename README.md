@@ -63,6 +63,120 @@ available as background, not the implementation-status entry point.
 The frozen guided prompt is
 [`prompts/vision2web/guided_vsv.txt`](prompts/vision2web/guided_vsv.txt).
 
+### Verification trajectory cropping
+
+`score_vsv.py --extract-only` extracts **all self-verification rounds**, including
+visual, text-only and combined evidence, with references to relevant
+modifications and later checks. It uses one text-only `verification_annotation`
+stage with the existing JudgeClient, profiles, cache and raw responses:
+
+```
+original timeline → ID-paired candidates → batch annotation → rounds + references
+```
+
+```bash
+python3 scripts/vision2web/score_vsv.py \
+  --run-json path/to/trajectory/run.json \
+  --output-dir runs/vsv_eval/crop --extract-only
+```
+
+Configure `primary_stage_profiles.verification_annotation` in
+`configs/vision2web/vsv_scoring.json`, or use `--primary-profile NAME` with an
+existing configured endpoint. No task root, workflow, image pixels, coverage,
+replay, new snapshots, diff generation or scoring stage is loaded. The old
+scoring episode extractor and scoring definitions remain separate.
+
+The basic unit is one inspection attempt: operations → evidence → current
+response/judgment, if any. Complete calls are never split into script fragments.
+Independent evidence/judgments form separate rounds even within one survey plan;
+multiple findings, necessary navigation and failed retries may share a round.
+A new check after a recorded implementation change is a new round. Prototype
+understanding is excluded, and checks without judgments are retained.
+
+Outputs include `candidate_windows.json`, `verification_rounds.json`,
+`model_annotations.json`, `visual_verification_rounds.json`, and
+`other_verification_rounds.json`. The canonical round record has 11 fields:
+
+| Field | Purpose |
+| --- | --- |
+| `episode_id` | Stable identity of this check round |
+| `candidate_ids` | Trace the round back to the supplied candidate calls and model annotations |
+| `verification_kind` | Image/capture operation or attempt (`visual`), otherwise `non_visual` |
+| `evidence_modalities` | `image` and/or `text` actually returned in this core, or `[]` |
+| `core_event_ids` | Ordered original operations, paired returns and model responses |
+| `judgment_event_ids` | Expressed judgments linked by the annotation stage; possibly empty |
+| `context_event_ids` | Shared capture sources, earlier evidence and necessary background |
+| `evidence_states` | Image input IDs, producer IDs and capture/read version hashes |
+| `program_sha256` | Recorded implementation state of this round, possibly unknown |
+| `repair_links` | Related edit IDs, later episode IDs and original relationship evidence |
+| `relation_annotation_complete` | Whether the model received complete relation context |
+
+`verification_rounds.json` stores raw `events` **once at the top level**.
+Rounds and candidate metadata reference them by original IDs. Candidate `windows`
+use `event_ids`, with image-source references and image-file availability; they
+contain no repeated event bodies. A missing file never removes recorded evidence.
+The source trajectory hash and existing resource/version references are retained.
+
+Call/result pairing is read from the original `tool_call_id`; a separate
+`check_calls` copy is unnecessary. Round bounds are `min/max(core_event_ids)`;
+model responses are the core events of kind `model_text` or `reasoning`.
+Modification/recheck references exist only inside `repair_links`, not as duplicate
+flattened lists. A link has `repair_event_ids`, `recheck_episode_ids` and
+`evidence_event_ids`; it preserves which modifications belong to which rechecks.
+Historical images are determined from their capture/read hashes when both are
+known; unknown hashes remain unknown.
+
+`verification_kind` routes operations, not semantic targets: text-only diagnostics
+may concern visual assets. `evidence_modalities` counts current tool returns,
+not model narration or old context. Missing judgments, failed attempts and missing
+returns stay in the same record format. An error return is not proof of an
+application defect. No target IDs, coverage or correctness scores are inferred.
+
+Counts are computed from these records; there are no repeated category ID lists.
+Image receipt, visual attempts without images and nonvisual checks partition the
+rounds. Mixed text/image evidence overlaps the image group and is not added to
+the total. The visual and other JSON files are review views of the same records,
+with subset counts and `source_rounds` pointing to the canonical file. Relations
+outside a subset resolve there. Visual views include attempts without images;
+the other view remains `record_only`, without a new scoring definition.
+
+The top-level original event ledger includes paired returns and original edits,
+including `file_path`, `old_string` and `new_string`. Shared/batch captures stay
+context references; they are not expanded into continuous spans containing other
+checks. Modification and future recheck events stay outside the check core.
+References establish association, not repair success or regression safety.
+The program checks ID membership, complete calls, core ownership, session/state
+boundaries and relation timing. An unknown image producer/state remains unknown;
+reading an old image does not turn it into post-edit evidence.
+
+Annotation first tries one complete evidence packet. Over
+`--verification-max-input-chars` (default 240,000 characters, including prompts),
+it packs whole candidate calls and reserves room for producer sources, neighboring
+checks and whole edit records. Original global IDs remain unchanged. Batches
+record omitted candidate/edit IDs; `annotation_limitations` and each round's
+`relation_annotation_complete` explicitly flag incomplete relation context.
+An absent cross-batch link is not a negative finding. Oversized individual calls,
+malformed JSON and invalid relations raise without schema-correction loops.
+`judge_cache/verification_annotation/` preserves requests and raw responses.
+
+`--offline` writes only unfiltered `candidate_windows.json`, explicitly marked
+`rule_candidates_only`, without loading a model configuration or either scoring
+or annotation stages.
+
+To review rounds, shared sources, edits and rechecks in one portable HTML file:
+
+```bash
+python3 scripts/vision2web/render_vsv_windows.py \
+  --input runs/vsv_eval/crop/verification_rounds.json \
+  --output runs/vsv_eval/crop/review.html
+```
+
+The viewer defaults to rounds with actual image inputs; all checks, nonvisual
+checks, visual attempts without images, mixed evidence and errors can be
+filtered separately. All images are embedded for download and local opening.
+Core evidence, background and later modifications are displayed separately,
+with recheck navigation. No recorded command or scoring operation is executed.
+
 ## Included benchmark registrations
 
 | Name | Data source | Evaluation |
