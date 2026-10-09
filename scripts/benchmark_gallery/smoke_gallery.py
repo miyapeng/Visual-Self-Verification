@@ -14,8 +14,8 @@ PROJECT = Path(__file__).resolve().parents[2]
 
 def local_chromium() -> str | None:
     candidates = [
-        PROJECT / ".runtime/research/playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell",
-        PROJECT / ".runtime/research/playwright/chromium-1223/chrome-linux64/chrome",
+        PROJECT / ".local/runtime/research/playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell",
+        PROJECT / ".local/runtime/research/playwright/chromium-1223/chrome-linux64/chrome",
     ]
     return str(next((path for path in candidates if path.exists()), "")) or None
 

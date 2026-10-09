@@ -66,7 +66,7 @@ export TMPDIR="$scratch_root/tmp"
 mkdir -p "$XDG_CACHE_HOME" "$HF_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" "$TMPDIR"
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/research/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/research/playwright"
 
 "$vllm_bin" serve "$model_path" \
   --host 0.0.0.0 --port "$port" \
@@ -101,7 +101,7 @@ for case_id in "${case_ids[@]}"; do
   output_root="$scratch_root/results/$case_id"
   write_status case_running "$case_id"
   set +e
-  PYTHONPATH=src "$mmcode_python" research_run.py run \
+  PYTHONPATH=src "$mmcode_python" scripts/research/run.py run \
     --cases "$cases" --case-id "$case_id" --output-root "$output_root" \
     --policy guarded_frontier --source-context execution_rooted \
     --backend vllm --model Qwen3.5-35B-A3B \

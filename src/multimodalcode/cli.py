@@ -330,7 +330,7 @@ def command_run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python run.py",
+        prog="python scripts/run.py",
         description="Unified multimodal web-code benchmark runner",
     )
     parser.add_argument("--config", help="Benchmark registry JSON")
@@ -412,7 +412,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser(
         "run",
-        prog="python run.py",
+        prog="python scripts/run.py",
         help="Run inference and benchmark-specific evaluation",
     )
     add_run_arguments(run_parser)

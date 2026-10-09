@@ -228,7 +228,7 @@ def test_extract_cli_without_task_root_or_scoring_and_offline_without_config(tmp
     assert result["workspace_artifact"] == "workspace" and result["raw_links"] == original["raw_links"]
     visual = json.loads((out / "visual_verification_rounds.json").read_text())
     other = json.loads((out / "other_verification_rounds.json").read_text())
-    assert visual["intended_use"] == "visual_scoring_input" and other["intended_use"] == "record_only"
+    assert visual["intended_use"] == "visual_scoring_input" and other["intended_use"] == "text_scoring_input"
     assert visual["episodes"][0]["candidate_ids"] == ["window-3"]
     assert other["episodes"][0]["candidate_ids"] == ["window-1"]
     assert visual["versions"] == result["versions"] == other["versions"]

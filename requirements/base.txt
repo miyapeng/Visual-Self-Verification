@@ -1,0 +1,15 @@
+# Page rendering
+Pillow>=9.0
+playwright==1.60.0
+
+# Design2Code official evaluator (evaluation-time dependencies only)
+beautifulsoup4>=4.12
+colormath>=3.0
+matplotlib>=3.7
+numpy>=1.24,<2
+opencv-python-headless>=4.8
+openai-clip>=1.0.1
+packaging>=23
+scikit-learn>=1.3
+scipy>=1.10
+tqdm>=4.66

@@ -36,7 +36,7 @@ cd "$project_root"
 overall=0
 for case_id in "$@"; do
     echo "[design-agent] case=$case_id model=$served_model started_at=$(date -u +%FT%TZ)"
-    "$python" agent_run.py run design2code "$case_id" \
+    "$python" scripts/agents/run.py run design2code "$case_id" \
         --model "$served_model" \
         --base-url "$base_url" \
         --api-key EMPTY \

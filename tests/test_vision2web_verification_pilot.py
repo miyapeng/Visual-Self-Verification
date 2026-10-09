@@ -65,7 +65,7 @@ def test_forced_probe_does_not_consume_private_workflow():
         ROOT / "scripts/vision2web/run_verification_capacity_probe.py"
     ).read_text(encoding="utf-8")
     prompt = (
-        ROOT / "prompts/vision2web/fresh_context_verification_probe.txt"
+        ROOT / "configs/prompts/vision2web/fresh_context_verification_probe.txt"
     ).read_text(encoding="utf-8")
     assert "workflow_shape" not in runner
     assert "workflow.json" in runner  # absence guard only
@@ -80,7 +80,7 @@ def test_forced_probe_does_not_consume_private_workflow():
 
 def test_same_context_check_can_launch_the_application_without_external_orchestration():
     prompt = (
-        ROOT / "prompts/vision2web/same_context_self_check.txt"
+        ROOT / "configs/prompts/vision2web/same_context_self_check.txt"
     ).read_text(encoding="utf-8")
     assert "/workspace/start.sh in the background" in prompt
     assert "wait until the URL responds" in prompt

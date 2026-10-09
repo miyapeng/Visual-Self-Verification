@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from multimodalcode.vsv_eval.repair_pilot import extract_run_code, reconstruct, repair_outcome, regression_result, functional_pass
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,6 +76,8 @@ def test_verified_version_copies_and_explicit_repair_records(tmp_path):
     from multimodalcode.vsv_eval.repair_pilot import prepare_versions, repair_records, digest_tree
     spec = json.loads((ROOT / 'configs/vision2web/smartrecruiters_repair_v2.json').read_text())
     timeline = json.loads((FIXTURE / 'trajectory/run.json').read_text())['timeline']
+    if not Path(spec['version_source']['path']).is_file():
+        pytest.skip('Archived verified version manifest unavailable on this machine')
     result = prepare_versions(FIXTURE, spec, tmp_path / 'versions')
     records = repair_records(spec, result, timeline)
     assert len(result['versions']) == 4 and len(records) == 5
@@ -89,6 +93,8 @@ def test_repair_records_reject_reversed_versions_and_future_feedback():
     import pytest
     from multimodalcode.vsv_eval.repair_pilot import repair_records
     spec = json.loads((ROOT / 'configs/vision2web/smartrecruiters_repair_v2.json').read_text())
+    if not Path(spec['version_source']['path']).is_file():
+        pytest.skip('Archived verified version manifest unavailable on this machine')
     versions = json.loads(Path(spec['version_source']['path']).read_text())
     timeline = json.loads((FIXTURE / 'trajectory/run.json').read_text())['timeline']
     bad = copy.deepcopy(spec)
@@ -103,3 +109,34 @@ def test_repair_records_reject_reversed_versions_and_future_feedback():
     bad['targets'][0].update(before='V1', after='V1')
     with pytest.raises(ValueError, match='changed code'):
         repair_records(bad, versions, timeline)
+
+
+def test_reverse_edits_and_audited_resource_placement(tmp_path):
+    import hashlib
+    from multimodalcode.vsv_eval.states import artifact_identity
+    for folder in ('trajectory/development/versions/P_first/app',
+                   'trajectory/development/versions/P_final/app', 'agent_visible/resources'):
+        (tmp_path/folder).mkdir(parents=True)
+    for name in ('P_first', 'P_final'):
+        (tmp_path/f'trajectory/development/versions/{name}/app/index.html').write_text('new')
+    command = 'move resources'
+    timeline = [
+        {'ordinal': 1, 'kind': 'action', 'tool': 'Bash', 'tool_call_id': 'move', 'payload': {'command': command}},
+        {'ordinal': 2, 'kind': 'observation', 'payload': {'tool_use_id': 'move'}},
+        {'ordinal': 3, 'kind': 'action', 'tool': 'Edit', 'tool_call_id': 'edit',
+         'payload': {'file_path': '/workspace/app/index.html', 'old_string': 'old', 'new_string': 'new'}},
+        {'ordinal': 4, 'kind': 'observation', 'payload': {'tool_use_id': 'edit'}}]
+    (tmp_path/'trajectory/run.json').write_text(json.dumps({'timeline': timeline}))
+    spec = {'base_before_event': 1, 'edit_ordinals': [1, 3], 'boundaries': [1, 3], 'version_source': {
+        'reverse_edit_ordinals': [3], 'resource_path': 'public/resources', 'resource_moves': [
+            {'ordinal': 1, 'from': 'public/resources', 'to': 'resources',
+             'command_sha256': hashlib.sha256(command.encode()).hexdigest()}]}}
+    result = reconstruct(tmp_path, spec, tmp_path/'reconstructed')
+    assert [(Path(v['workspace'])/'app/index.html').read_text() for v in result['versions']] == ['old', 'old', 'new']
+    assert [v['resource_path'] for v in result['versions']] == ['public/resources', 'resources', 'resources']
+    assert (tmp_path/'trajectory/development/versions/P_first/app/index.html').read_text() == 'new'
+    assert result['versions'][0]['code_manifest'] == result['versions'][1]['code_manifest']
+    assert artifact_identity(result['versions'][0], {}) != artifact_identity(result['versions'][1], {})
+    spec['version_source']['resource_moves'][0]['command_sha256'] = 'invalid'
+    with pytest.raises(ValueError, match='audited command'):
+        reconstruct(tmp_path, spec, tmp_path/'invalid')

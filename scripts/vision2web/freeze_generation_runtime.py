@@ -15,7 +15,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TARGET = PROJECT_ROOT / "runs" / "vision2web_generation" / "runtime-20260816b"
 INCLUDE = (
-    Path("agent_run.py"),
+    Path("scripts/agents/run.py"),
     Path("src/multimodalcode"),
     Path("scaffolds/openhands"),
     Path("evaluate/vision2web"),

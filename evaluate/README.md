@@ -1,5 +1,14 @@
 # Benchmark evaluator provenance
 
+Project-owned scoring code lives in `src/multimodalcode/vsv_eval/`; common commands
+live in `scripts/vsv/`. This directory holds external benchmark sources:
+
+- `benchmarks/`: full local checkouts of Vision2Web, SWE-bench, 3DCodeBench and
+  GameDevBench. See [benchmarks/README.md](benchmarks/README.md) for source revisions.
+- Other directories: existing pinned evaluator snapshots and provenance records.
+  Their versions can differ from the full checkouts; do not merge them.
+
+
 The released evaluation sources used by all registered and agent benchmarks
 are stored inside this repository. Original sibling checkouts are not source
 dependencies at runtime.
@@ -32,8 +41,8 @@ that the four protocols share one output format. The original reference files
 are retained beside the port for auditability.
 
 Coding-agent runtimes are intentionally not stored here. They live under
-`scaffolds/`; see `docs/AGENT_SCAFFOLDS.md`. This directory is reserved for
-upstream benchmark evaluators and their licenses.
+`scaffolds/`; see `docs/AGENT_SCAFFOLDS.md`. This directory contains upstream benchmark evaluators, their licenses, and the
+separate local checkouts described above.
 
 ## Current integration status
 

@@ -31,7 +31,7 @@ mkdir -p "$XDG_CACHE_HOME" "$HF_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_
 
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/research/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/research/playwright"
 
 server_pid=
 persist_small_logs() {
@@ -76,7 +76,7 @@ echo "[repair-capacity-r1] vLLM ready"
 
 cd "$project_root"
 set +e
-PYTHONPATH=src "$mmcode_python" research_run.py run \
+PYTHONPATH=src "$mmcode_python" scripts/research/run.py run \
   --cases "$cases" \
   --output-root "$output_root" \
   --policy guarded_frontier \

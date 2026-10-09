@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import signal
+import socket
 import subprocess
 import time
 import urllib.request
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from multimodalcode.io import read_json, write_json
+from .repair_pilot import assess_output
 
 
 def _safe_workspace(path: str | Path) -> Path:
@@ -304,3 +306,103 @@ def compare_replays(
             }
         },
     }
+
+
+def _run_browser(command, env, destination, gui_judge):
+    """Keep browser state while delegating only unresolved element grounding."""
+    from .acceptance import ground_step
+    with (destination / 'browser.log').open('w') as log:
+        browser = subprocess.Popen(command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=log, text=True)
+        try:
+            for index, line in enumerate(browser.stdout):
+                message = json.loads(line)
+                if set(message) != {'gui_step'}:
+                    raise ValueError('Unexpected browser message')
+                selection = (ground_step(message['gui_step'], gui_judge, destination / 'gui_steps' / f'{index}.json')
+                             if gui_judge else {'action': 'blocked', 'reason': 'gui_grounding_unavailable'})
+                browser.stdin.write(json.dumps(selection) + '\n')
+                browser.stdin.flush()
+            if browser.wait(timeout=10):
+                raise RuntimeError(f'Browser execution failed; see {destination / "browser.log"}')
+        finally:
+            if browser.poll() is None:
+                browser.terminate()
+                try:
+                    browser.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    browser.kill()
+                    browser.wait(timeout=5)
+            browser.stdin.close()
+            browser.stdout.close()
+
+
+def replay_version(version, browser_spec, destination, port, *, gui_judge=None):
+    root = Path(__file__).resolve().parents[3]
+    browser_spec = {**browser_spec, 'executor_sha256': hashlib.sha256(
+        (root / 'scripts/vision2web/replay_recorded_browser.cjs').read_bytes()).hexdigest()}
+    destination.mkdir(parents=True, exist_ok=True)
+    result_path = destination / 'result.json'
+    spec_path = destination / 'spec.json'
+    if result_path.exists():
+        if read_json(spec_path) != browser_spec:
+            raise ValueError('Cached replay uses different input; choose a fresh output directory')
+        return read_json(result_path)
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind(('127.0.0.1', port))  # refuse to accidentally test another existing server
+    write_json(spec_path, browser_spec)
+    env = dict(os.environ, PORT=str(port))
+    runtime = browser_spec['runtime']
+    env.update(runtime.get('env', {}))
+    for key in tuple(env):
+        if key.endswith('_API_KEY'):
+            env.pop(key)
+    for key in ('HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy'):
+        env.pop(key, None)
+    with (destination / 'server.log').open('w') as log:
+        command = [s.replace('{port}', str(port)) for s in runtime['command']]
+        cwd = (Path(version['workspace']) / runtime.get('cwd', '.')).resolve()
+        if not cwd.is_relative_to(Path(version['workspace']).resolve()):
+            raise ValueError('Runtime cwd must stay inside the isolated version workspace')
+        process = subprocess.Popen(command, cwd=cwd, env=env,
+                                   stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            _wait_ready(browser_spec['base_url'], runtime.get('ready_timeout', 30))
+            if process.poll() is not None:
+                raise RuntimeError('Own server exited; refusing replay')
+            browser_command = ['node', str(root / 'scripts/vision2web/replay_recorded_browser.cjs'),
+                               str(spec_path), str(destination)]
+            if browser_spec.get('acceptance_workflows'):
+                _run_browser(browser_command, env, destination, gui_judge)
+            else:
+                subprocess.run(browser_command, env=env, check=True, timeout=360)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+                process.wait(timeout=5)
+            except ProcessLookupError:
+                pass
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=5)
+    result = read_json(result_path)
+    result.update({'code_sha256': version['code_manifest']['sha256'], 'workspace': version['workspace'],
+                   'launch': command, 'runtime': runtime,
+                   'replay_kind': ('Independent acceptance with fixed workflows and prescribed UI actions.'
+                                   if browser_spec.get('acceptance_workflows') else
+                                   'Original run-code JS with reviewed route reset and added per-step captures; not byte-identical CLI replay.')})
+    for row in result['checks']:
+        if row['status'] != 'executed':
+            row['passed'] = None  # tool failure is not an application failure
+            continue
+        try:
+            value = json.loads(row['output']) if isinstance(row['output'], str) else row['output']
+            check = next(c for c in browser_spec['checks'] if c['name'] == row['name'])
+            row['passed'] = assess_output(check.get('assertions'), value)
+            row['assertions'] = check.get('assertions', [])
+        except (ValueError, TypeError, AttributeError) as exc:
+            row['passed'] = None
+            row['assessment_error'] = str(exc)
+    write_json(result_path, result)
+    return result

@@ -18,7 +18,7 @@ echo "[interactweb-mini] started_at=$(date -u +%FT%TZ) host=$(hostname)"
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
 
 export PATH="$interact_bin:$PATH"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/interactweb/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/interactweb/playwright"
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
 

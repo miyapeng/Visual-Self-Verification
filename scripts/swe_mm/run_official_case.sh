@@ -62,7 +62,7 @@ curl --noproxy '*' -fsS --connect-timeout 5 --max-time 15 "$base_url/models" >/d
 }
 
 cd "$runtime_root"
-"$python" "$runtime_root/agent_run.py" run swe-mm "$instance_id" \
+"$python" "$runtime_root/scripts/agents/run.py" run swe-mm "$instance_id" \
     --workspace /testbed \
     --model "$served_model" \
     --base-url "$base_url" \

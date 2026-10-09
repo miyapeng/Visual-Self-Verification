@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TARGET = PROJECT_ROOT / "runs" / "swe_mm_official" / "runtime-20260813d"
 
 COPY_PATHS = (
-    "agent_run.py",
+    "scripts/agents/run.py",
     "src/multimodalcode",
     "scaffolds/mini_swe_agent/src/minisweagent",
     "scaffolds/mini_swe_agent/UPSTREAM.json",

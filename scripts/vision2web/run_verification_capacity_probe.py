@@ -17,7 +17,7 @@ from multimodalcode.agent_harness.vision2web_trace import manifest_hash, program
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PROMPT = (
-    PROJECT_ROOT / "prompts/vision2web/fresh_context_verification_probe.txt"
+    PROJECT_ROOT / "configs/prompts/vision2web/fresh_context_verification_probe.txt"
 )
 
 

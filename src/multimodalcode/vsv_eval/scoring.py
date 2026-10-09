@@ -163,7 +163,7 @@ def _audit_agreement(
     return {
         "fields": comparisons,
         "exact_agreement": (sum(values) / len(values)) if values else None,
-        "needs_human_adjudication": any(not value for value in values),
+        "disputed_fields": [field for field, row in comparisons.items() if not row["agree"]],
     }
 
 

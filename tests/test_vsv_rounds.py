@@ -81,6 +81,36 @@ def test_round_cores_shared_sources_failed_retry_delayed_shared_repair_and_missi
     assert read["image_availability"][0]["available"] is False
     assert extract_verification_rounds(run, judge) == packet
     judge._request.assert_called_once()
+    supplied = json.loads(judge._request.call_args.args[0].split("EVIDENCE:\n", 1)[1])
+    assert set(supplied["allowed_policy_event_ids"]) == {
+        e["ordinal"] for e in supplied["events"] if e["kind"] in {"model_text", "reasoning"}
+    }
+
+
+def test_failed_recheck_keeps_a_separate_following_repair_attempt(tmp_path):
+    run, events, annotation, judge = run_fixture(tmp_path)
+    events[15]['text'] = 'The footer is still blank.'
+    events.extend([
+        call(20, category='edit', tool='Edit',
+             payload={'file_path': 'component.js', 'old_string': 'new', 'new_string': 'fixed'}),
+        result(21, 20, text='file updated successfully'),
+        call(22, tool='browser_state'), result(23, 22, images=[{'path': 'missing-final.png'}]),
+        policy(24, 'The footer is visible now.'),
+    ])
+    run.write_text(json.dumps({'case_id': 'fixture', 'timeline': events}))
+    annotation['rounds'].append(round_row([22], [24], [24]))
+    annotation['repair_links'].append({'source_candidate_id': 'window-13', 'repair_event_ids': [20],
+                                      'recheck_candidate_ids': ['window-22'], 'evidence_event_ids': [15,24]})
+    judge._request.return_value = json.dumps(annotation)
+    packet = extract_verification_rounds(run, judge)
+    source = next(e for e in packet['episodes'] if 'window-3' in e['candidate_ids'])
+    retry = next(e for e in packet['episodes'] if 'window-13' in e['candidate_ids'])
+    final = next(e for e in packet['episodes'] if 'window-22' in e['candidate_ids'])
+    assert source['repair_links'][0]['repair_event_ids'] == [9]
+    assert source['repair_links'][0]['recheck_episode_ids'] == [retry['episode_id']]
+    assert retry['repair_links'][0]['repair_event_ids'] == [20]
+    assert retry['repair_links'][0]['recheck_episode_ids'] == [final['episode_id']]
+    assert packet['events'] == events
 
 
 def test_cross_modification_merge_and_future_current_context_raise(tmp_path):
@@ -97,6 +127,23 @@ def test_cross_modification_merge_and_future_current_context_raise(tmp_path):
     judge._request.return_value = json.dumps(broken)
     with pytest.raises(ValueError, match="Future"):
         extract_verification_rounds(run, judge)
+
+
+def test_annotation_schema_restricts_original_ids_and_restores_profile(tmp_path):
+    from dataclasses import replace
+    run, _, _, judge = run_fixture(tmp_path)
+    judge.profile = replace(judge.profile, json_mode=True)
+    original_profile = judge.profile
+    extract_verification_rounds(run, judge)
+    record = json.loads(next(judge.cache_root.glob('*.json')).read_text())
+    schema = record['generation_settings']['response_format']['json_schema']['schema']
+    properties = schema['properties']
+    assert 'window-999' not in properties['excluded_candidate_ids']['items']['enum']
+    fields = properties['rounds']['items']['properties']
+    allowed = fields['judgment_event_ids']['items']['enum']
+    assert '5' in allowed
+    assert '4' not in allowed
+    assert judge.profile is original_profile
 
 
 @pytest.mark.parametrize("change", [
@@ -222,9 +269,10 @@ def test_all_evidence_modes_attempts_and_missing_returns_share_one_record_struct
     judge = JudgeClient(JudgeProfile("fixture", "openai-compatible", "fixture", "http://unused", "UNUSED"), tmp_path / "cache")
     judge._request = Mock(return_value=json.dumps(annotation))
     packet = extract_verification_rounds(run, judge)
-    text, mixed, failed, missing, image, empty = packet["episodes"]
+    text, image_with_text, failed, missing, image, empty = packet["episodes"]
     assert text["verification_kind"] == "non_visual" and text["evidence_modalities"] == ["text"]
-    assert mixed["evidence_modalities"] == ["image", "text"]
+    assert image_with_text["verification_kind"] == "visual"
+    assert image_with_text["evidence_modalities"] == ["image", "text"]
     window = next(w for w in packet["windows"] if w["id"] == "window-4")
     assert window["image_availability"] == [{"event_id": 5, "path": "missing.png", "available": False}]
     assert failed["core_event_ids"] == [7, 8] and packet["events"][7]["is_error"] is True
@@ -235,7 +283,7 @@ def test_all_evidence_modes_attempts_and_missing_returns_share_one_record_struct
     assert {10, 11} <= set(empty["context_event_ids"])
     assert packet["image_episode_count"] == 2 and packet["image_input_count"] == 2
     assert packet["visual_attempt_without_image_count"] == 1
-    assert packet["non_visual_episode_count"] == 3 and packet["mixed_evidence_episode_count"] == 1
+    assert packet["non_visual_episode_count"] == 3 and "mixed_evidence_episode_count" not in packet
     assert [e["episode_id"] for e in packet["episodes"] if not e["judgment_event_ids"]] == [e["episode_id"] for e in [failed, missing, empty]]
     assert all(set(e) == {"episode_id", "candidate_ids", "verification_kind", "evidence_modalities",
                           "core_event_ids", "judgment_event_ids", "context_event_ids", "evidence_states",

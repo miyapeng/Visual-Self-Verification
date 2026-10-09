@@ -125,7 +125,7 @@ def collect_visual(value, timeline, remember, task_text):
     summary = visual_summary(rows)
     counts = summary["assessment_counts"]
     decidable = sum(counts.get(k, 0) for k in ("correct", "partially_correct", "incorrect"))
-    summary.update({"unit": "expressed image-conditioned judgment", "human_calibrated": False,
+    summary.update({"unit": "expressed image-conditioned judgment", "judge_validation": "not_validated",
                     "strict_correct_given_decidable": rate(counts.get("correct", 0), decidable),
                     "decidable_given_present": rate(decidable, summary["judgment_count"]),
                     "episode_status_counts": dict(Counter(e["visual_judgment"]["status"] for e in value["episodes"]))})
@@ -219,7 +219,7 @@ def collect_repair(value, source_hash, remember):
                "protocol": "configured-replay-2" if configured else "legacy-case-pilot-1",
                "scope": "configured targets and regression checks" if configured else "case-specific development pilot",
                "target_count": len(targets), "code_version_count": len(versions), "transition_count": len(transitions),
-               "outcome_counts": counts, "human_calibrated": False,
+               "outcome_counts": counts, "judge_validation": "not_validated",
                "target_fixed_given_reproduced_failure": rate(counts.get("fixed", 0), len(reproduced)),
                "fixed_without_observed_regression": rate(sum(r["outcome"] == "fixed" and r["regression_status"] == "no_observed_regression" for r in safety_assessed), len(safety_assessed)),
                "regression_status_counts": dict(Counter(r["status"] for r in transitions)),
@@ -344,7 +344,7 @@ def write_summary_html(result, destination):
         rows.append(f'<h2>{esc(name)} · {esc(stage["status"])}</h2>{link}<pre>{esc(json.dumps(stage.get("summary", stage), ensure_ascii=False, indent=2))}</pre>')
     text = '<!doctype html><html lang="en"><meta charset="utf-8"><title>VSV evaluation summary</title><style>body{font:16px/1.6 system-ui;max-width:1000px;margin:32px auto;padding:0 20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f6f7;padding:16px}</style>'
     text += f'<h1>{esc(result["case_id"])}</h1><p>{esc(result["model"])} / {esc(result["framework"])} / {esc(result["mode"])}</p>'
-    text += '<p>This report contains offline research diagnostics, not official Vision2Web scores. Completion means all three stages ran. Judge calibration is pending. Metrics are reported separately because their denominators differ.</p>'
+    text += '<p>This report contains offline research diagnostics, not official Vision2Web scores. Completion means all three stages ran. Automated judge validation has not been established for these historical results. Metrics are reported separately because their denominators differ.</p>'
     if result.get("scorecard"):
         labels = {"T": "Executed, reasonable checks ↑", "C": "Workflow coverage ↑", "J": "Strict visual judgment accuracy ↑",
                   "R": "Safe repair rate ↑", "regression": "Observed regression rate across tested transitions ↓"}

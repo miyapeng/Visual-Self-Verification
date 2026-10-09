@@ -1,0 +1,33 @@
+digraph Overview {
+  graph [rankdir=TB, bgcolor="#f8fafc", pad="0.35", nodesep="0.45", ranksep="0.5", fontname="DejaVu Sans", fontsize=22, label="Self-Verification Evaluation | Current Code", labelloc=t];
+  node [shape=box, style="rounded,filled", fillcolor="white", color="#cbd5e1", fontname="DejaVu Sans", fontsize=14, margin="0.20,0.15"];
+  edge [color="#64748b", arrowsize=0.7];
+  task [label="Task + reference material"];
+  catalogue [label="MODEL: prepare a fixed requirement list\nShared across agents on the same task", fillcolor="#ede9fe"];
+  raw [label="Original trajectory\nCalls, returns, responses, image references"];
+  candidates [label="CODE: pair calls and returns\nBuild small evidence candidates", fillcolor="#e0f2fe"];
+  rounds [label="MODEL + CODE: select and group checks\nLink actual edits and later rechecks", fillcolor="#ede9fe"];
+  packets [label="CODE: assemble evidence for each round\nOnly evidence available by its cutoff\nOriginal and reconstructed pixels stay identified", fillcolor="#e0f2fe"];
+  checks [label="Separate MODEL calls\nVC: map coverage\nCV: assess method + evidence\nObservation: assess artifact state\nBDA: compare agent diagnosis", fillcolor="#ede9fe"];
+  versions [label="Audited before / after code\nFixed acceptance tests + task runtime"];
+  execute [label="CODE: execute version acceptance\nWeb actions / repository tests / render probes\nSave observations and execution output", fillcolor="#e0f2fe"];
+  acceptance [label="MODEL: assess acceptance evidence\nRS: repair targets\nCP: requirement states", fillcolor="#ede9fe"];
+  align [label="MODEL: match the rechecked condition\nCODE: validate edit order + evidence version", fillcolor="#ede9fe"];
+  metrics [label="CODE: calculate VC / CV / BDA / RS / CP / VCS\nKeep sample counts, source IDs and model responses", fillcolor="#dcfce7", color="#86efac"];
+  task -> catalogue;
+  raw -> candidates -> rounds -> packets -> checks;
+  catalogue -> packets;
+  catalogue -> execute [style=dashed];
+  rounds -> execute [label="repair links", fontsize=11];
+  versions -> execute -> acceptance;
+  rounds -> align;
+  checks -> align;
+  checks -> metrics;
+  acceptance -> metrics;
+  align -> metrics;
+  {rank=same; task; raw; versions;}
+  {rank=same; catalogue; rounds;}
+  {rank=same; checks; acceptance;}
+  note [shape=plain, fontsize=12, fontcolor="#475569", label="Default Judge profile: Gemini 3 Flash | Model labels, program arithmetic\nEvaluator acceptance does not count as an agent recheck.\nMissing required evidence remains incomplete; it is not an invented pass/fail score."];
+  metrics -> note [style=invis];
+}

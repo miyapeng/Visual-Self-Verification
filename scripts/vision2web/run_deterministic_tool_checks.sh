@@ -20,7 +20,7 @@ if [[ ! $output_label =~ ^[A-Za-z0-9._-]+$ ]]; then
 fi
 output="$project_root/runs/vision2web_self_verify/end_to_end/$output_label"
 server_state="$project_root/runs/agent_smoke/servers/$server_run/ready.json"
-proxy_venv="$project_root/.venvs/vision2web-litellm-proxy-py312"
+proxy_venv="$project_root/.local/venvs/vision2web-litellm-proxy-py312"
 proxy_port=4000
 
 mkdir -p "$output"

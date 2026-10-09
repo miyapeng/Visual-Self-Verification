@@ -1,0 +1,39 @@
+digraph Metrics {
+  graph [rankdir=LR, bgcolor="#f8fafc", pad="0.35", nodesep="0.4", ranksep="0.38", fontname="DejaVu Sans", fontsize=23, label="How Each Score Is Computed | Current Code", labelloc=t];
+  node [shape=box, style="rounded,filled", fillcolor="white", color="#cbd5e1", fontname="DejaVu Sans", fontsize=14, margin="0.18,0.17"];
+  edge [color="#64748b", arrowsize=0.7];
+  i1 [label="VC | Coverage\nFixed requirements + all check rounds", group=a];
+  j1 [label="MODEL\nMap each check target to a requirement\nLabel full / partial / none", fillcolor="#ede9fe", group=a];
+  r1 [label="CODE\nDeduplicate by requirement ID\nAny full check covers that requirement", fillcolor="#e0f2fe", group=a];
+  s1 [label="100 x fully covered requirements\n/ all fixed requirements", fillcolor="#dcfce7", group=a];
+  i2 [label="CV | Check validity\nActions + returned evidence + context", group=b];
+  j2 [label="MODEL\nIs the method appropriate?\nIs the resulting evidence sufficient?", fillcolor="#ede9fe", group=b];
+  r2 [label="CODE\nValid = method_ok AND evidence_ok\nUnit: a target within a check round", fillcolor="#e0f2fe", group=b];
+  s2 [label="100 x valid check targets\n/ all assessed check targets", fillcolor="#dcfce7", group=b];
+  i3 [label="BDA | Diagnosis accuracy\nEvidence + agent's own diagnosis", group=c];
+  j3 [label="MODEL call 1: state from evidence\nMODEL call 2: agent verdict + issue match\nCall 1 excludes agent diagnosis text", fillcolor="#ede9fe", group=c];
+  r3 [label="CODE\nNormal: correct pass diagnosis\nDefective: correct fail + matching issue", fillcolor="#e0f2fe", group=c];
+  s3 [label="Mean of normal-class accuracy\nand defective-class accuracy\nUse only classes present in the task", fillcolor="#dcfce7", group=c];
+  i4 [label="RS | Repair acceptance\nLinked edits + executed version evidence", group=d];
+  j4 [label="MODEL\nDoes the repair target pass acceptance\nin the modified version?", fillcolor="#ede9fe", group=d];
+  r4 [label="CODE\nExclude targets already passing before\nUnit: repair-group / target pair", fillcolor="#e0f2fe", group=d];
+  s4 [label="100 x accepted repair targets\n/ eligible repair targets\nPost-repair acceptance, not causal gain", fillcolor="#dcfce7", group=d];
+  i5 [label="CP | Correctness preservation\nSame requirements checked before / after", group=e];
+  j5 [label="MODEL\nLabel requirement states from\nversion acceptance observations", fillcolor="#ede9fe", group=e];
+  r5 [label="CODE\nSelect requirements passing before\nCheck whether each still passes after", fillcolor="#e0f2fe", group=e];
+  s5 [label="100 x preserved requirement pairs\n/ previously passing requirement pairs\nUnit: version transition / requirement", fillcolor="#dcfce7", group=e];
+  i6 [label="VCS | Complete verification\nRound labels + repair links + rechecks", group=f];
+  j6 [label="MODEL\nMatch source and recheck conditions\nReuse existing judgments for quality", fillcolor="#ede9fe", group=f];
+  r6 [label="CODE: require all applicable conditions\nValid check + correct diagnosis\nFor defects: accepted repair + agent recheck\nFor linked repairs: correctness preserved", fillcolor="#e0f2fe", group=f];
+  s6 [label="100 x complete check rounds\n/ included check rounds\nA normal check needs no unnecessary repair", fillcolor="#dcfce7", group=f];
+  i1 -> j1 -> r1 -> s1;
+  i2 -> j2 -> r2 -> s2;
+  i3 -> j3 -> r3 -> s3;
+  i4 -> j4 -> r4 -> s4;
+  i5 -> j5 -> r5 -> s5;
+  i6 -> j6 -> r6 -> s6;
+  {rank=same; i1; i2; i3; i4; i5; i6; i1 -> i2 -> i3 -> i4 -> i5 -> i6 [style=invis];}
+  {rank=same; j1; j2; j3; j4; j5; j6; j1 -> j2 -> j3 -> j4 -> j5 -> j6 [style=invis];}
+  {rank=same; r1; r2; r3; r4; r5; r6; r1 -> r2 -> r3 -> r4 -> r5 -> r6 [style=invis];}
+  {rank=same; s1; s2; s3; s4; s5; s6; s1 -> s2 -> s3 -> s4 -> s5 -> s6 [style=invis];}
+}

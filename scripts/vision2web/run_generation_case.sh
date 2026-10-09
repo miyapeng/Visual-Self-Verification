@@ -68,7 +68,7 @@ python=/data/miyapeng/miniconda3/envs/mmcode/bin/python
 proxy_port=4000
 model_context=229376
 model_max_output=32768
-proxy_venv="$project_root/.venvs/vision2web-litellm-proxy-py312"
+proxy_venv="$project_root/.local/venvs/vision2web-litellm-proxy-py312"
 case_safe=${case_id//\//__}
 log_root="$run_root/jobs/$vision2web_mode/$case_safe"
 if [[ $vision2web_framework == claude_code ]]; then
@@ -213,7 +213,7 @@ fi
 
 cd "$runtime_root"
 if [[ $vision2web_framework == claude_code ]]; then
-    "$python" agent_run.py run vision2web "$case_id" \
+    "$python" scripts/agents/run.py run vision2web "$case_id" \
         --workspace /workspace \
         --model "$served_model" \
         --base-url "$agent_base" \
@@ -224,7 +224,7 @@ if [[ $vision2web_framework == claude_code ]]; then
         --claude-max-retries 0 \
         --wall-time "$wall_time"
 else
-    "$python" agent_run.py run vision2web "$case_id" \
+    "$python" scripts/agents/run.py run vision2web "$case_id" \
         --workspace /workspace \
         --model "litellm_proxy/$served_model" \
         --base-url "$agent_base" \

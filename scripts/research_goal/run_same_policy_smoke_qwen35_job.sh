@@ -20,7 +20,7 @@ vllm_bin=/data/miyapeng/miniconda3/envs/vllm/bin/vllm
 case_input_root="$project_root/runs/research/self_verify_public_cases-004"
 case_manifest="$case_input_root/cases.jsonl"
 interact_freeze_provenance="$project_root/runs/research/interact_first_runnable_programs-001/provenance.json"
-vision_dependency_root="$project_root/.runtime/research/vision2web_dependencies/57fd10d9b1bc13644edfd7585e4da89beb38efcc0208e575279a907e0ff07317"
+vision_dependency_root="$project_root/.local/runtime/research/vision2web_dependencies/57fd10d9b1bc13644edfd7585e4da89beb38efcc0208e575279a907e0ff07317"
 persistent_root="$project_root/runs/research/$run_label"
 scratch_root=$(mktemp -d /tmp/mmcode-same-policy.XXXXXX)
 frozen_project="$scratch_root/project"
@@ -37,7 +37,7 @@ if [[ ! -s "$case_manifest" ]]; then
 fi
 for required_path in \
   "$project_root/src/multimodalcode" \
-  "$project_root/self_verify_run.py" \
+  "$project_root/scripts/research/self_verify.py" \
   "$project_root/scripts/interactive_judge_playwright.js" \
   "$project_root/scripts/research_goal/materialize_self_verify_cases.py" \
   "$project_root/scripts/research_goal/preflight_self_verify_runtimes.py" \
@@ -57,12 +57,13 @@ mkdir -p \
   "$persistent_root" \
   "$frozen_project/src" \
   "$frozen_project/scripts/research_goal" \
+  "$frozen_project/scripts/research" \
   "$frozen_project/tests" \
   "$result_root"
 exec >>"$persistent_root/job.log" 2>&1
 echo "[job] started run_label=$run_label host=$(hostname)"
 cp -a "$project_root/src/multimodalcode" "$frozen_project/src/"
-cp "$project_root/self_verify_run.py" "$frozen_project/"
+cp "$project_root/scripts/research/self_verify.py" "$frozen_project/scripts/research/"
 cp "$project_root/scripts/interactive_judge_playwright.js" "$frozen_project/scripts/"
 cp "$project_root/scripts/research_goal/materialize_self_verify_cases.py" \
   "$frozen_project/scripts/research_goal/"
@@ -148,7 +149,7 @@ trap 'on_error $? $LINENO' ERR
 
 sha256sum \
   "$project_root/scripts/research_goal/run_same_policy_smoke_qwen35_job.sh" \
-  "$frozen_project/self_verify_run.py" \
+  "$frozen_project/scripts/research/self_verify.py" \
   "$frozen_project/src/multimodalcode/research/self_verify.py" \
   "$frozen_project/src/multimodalcode/research/events.py" \
   "$frozen_project/src/multimodalcode/research/interactive.py" \
@@ -177,7 +178,7 @@ export HF_HOME="$scratch_root/cache/huggingface"
 export TORCHINDUCTOR_CACHE_DIR="$scratch_root/cache/torchinductor"
 export TRITON_CACHE_DIR="$scratch_root/cache/triton"
 export TMPDIR="$scratch_root/tmp"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/research/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/research/playwright"
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
 mkdir -p \
@@ -304,7 +305,7 @@ env \
   NO_PROXY=localhost,127.0.0.1 \
   no_proxy=localhost,127.0.0.1 \
   setpriv --reuid=65534 --regid=65534 --clear-groups \
-  "$python_bin" "$frozen_project/self_verify_run.py" \
+  "$python_bin" "$frozen_project/scripts/research/self_verify.py" \
     --cases "$scratch_root/materialized-cases/cases.jsonl" \
     --output-root "$result_root" \
     --enable-self-verification \

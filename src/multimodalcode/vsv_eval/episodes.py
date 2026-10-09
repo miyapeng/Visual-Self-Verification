@@ -234,12 +234,12 @@ def _call_window(timeline: list[dict[str, Any]], index: int) -> dict[str, Any]:
     observed = _results(timeline, index)
     indices = {index, *(positions[id(row)] for row in observed)}
     before = index - 1
-    while before >= 0 and timeline[before].get("kind") in {"model_text", "reasoning"}:
+    while before >= 0 and timeline[before].get("kind") in {"model_text", "reasoning", "tool_metadata"}:
         indices.add(before)
         before -= 1
     if observed:
         after = max(positions[id(row)] for row in observed) + 1
-        while after < len(timeline) and timeline[after].get("kind") in {"model_text", "reasoning"}:
+        while after < len(timeline) and timeline[after].get("kind") in {"model_text", "reasoning", "tool_metadata"}:
             indices.add(after)
             after += 1
     return {
@@ -390,7 +390,6 @@ def verification_round_summary(episodes: list[dict[str, Any]]) -> dict[str, int]
         "image_input_count": len({s["event_id"] for e in episodes for s in e["evidence_states"]}),
         "visual_attempt_without_image_count": sum(e["verification_kind"] == "visual" and not e["evidence_states"] for e in episodes),
         "non_visual_episode_count": sum(e["verification_kind"] == "non_visual" for e in episodes),
-        "mixed_evidence_episode_count": sum({"text", "image"} <= set(e["evidence_modalities"]) for e in episodes),
     }
 
 
@@ -442,7 +441,7 @@ def extract_verification_rounds(
             {"event_id": e["ordinal"], "path": path, "available": bool(_resolve_image(str(path), source))}
             for e in unit["events"] if e.get("kind") == "observation"
             for image in e.get("images") or []
-            if (path := image if isinstance(image, str) else image.get("path"))
+            for path in [image if isinstance(image, str) else image.get("path", "")]
         ]
 
     annotation = annotate_verification_candidates(candidates, edits, judge, max_input_chars=max_input_chars)

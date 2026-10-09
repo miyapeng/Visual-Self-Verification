@@ -1036,7 +1036,7 @@ class SamePolicyLoopTests(unittest.TestCase):
             process = subprocess.run(
                 [
                     sys.executable,
-                    str(project / "self_verify_run.py"),
+                    str(project / "scripts/research/self_verify.py"),
                     "--cases",
                     str(manifest),
                     "--output-root",

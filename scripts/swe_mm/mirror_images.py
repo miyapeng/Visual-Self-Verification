@@ -27,7 +27,7 @@ DEFAULT_DATASET = (
     PROJECT_ROOT
     / "data/swe_mm/dev/evaluator_private/instances.full.jsonl"
 )
-DEFAULT_SKOPEO = PROJECT_ROOT / ".envs/imgsync/bin/skopeo"
+DEFAULT_SKOPEO = PROJECT_ROOT / ".local/envs/imgsync/bin/skopeo"
 DEFAULT_REGISTRIES_CONF = Path(__file__).with_name("registries.conf")
 DEFAULT_STATE = PROJECT_ROOT / "data/swe_mm/dev/private_images.jsonl"
 DEFAULT_REGISTRY = "registry.pjlab.org.cn/ccr-t-llm-frontier"

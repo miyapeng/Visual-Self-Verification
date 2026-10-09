@@ -1,0 +1,39 @@
+digraph Metrics {
+  graph [rankdir=LR, bgcolor="#f8fafc", pad="0.35", nodesep="0.4", ranksep="0.32", fontname="Droid Sans Fallback", fontsize=25, label="六项分数分别怎么算\n每一行独立，从左向右阅读；行与行之间没有依赖箭头", labelloc=t];
+  node [shape=box, style="rounded,filled", fillcolor="white", color="#cbd5e1", fontname="Droid Sans Fallback", fontsize=17, margin="0.20,0.18"];
+  edge [color="#64748b", arrowsize=0.7];
+  a1 [label="VC：检查覆盖率\n哪些要求被检查到了？", group=a];
+  b1 [label="模型匹配：检查目标 ↔ 固定要求\n给出完整／部分／未覆盖等标签", fillcolor="#ede9fe", group=a];
+  c1 [label="程序按要求编号去重\n重复检查同一要求只算一次", fillcolor="#e0f2fe", group=a];
+  d1 [label="完整覆盖的要求数\n÷ 全部固定要求数 × 100%", fillcolor="#dcfce7", group=a];
+  a2 [label="CV：检查有效性\n这次检查方法和证据合格吗？", group=b];
+  b2 [label="模型分别判断\n方法合理？实际证据足够？", fillcolor="#ede9fe", group=b];
+  c2 [label="程序：两项都成立才算有效\n按每轮中的检查目标统计", fillcolor="#e0f2fe", group=b];
+  d2 [label="有效的检查目标数\n÷ 全部检查目标数 × 100%", fillcolor="#dcfce7", group=b];
+  a3 [label="BDA：判断准确性\nagent 看完证据判断对了吗？", group=c];
+  b3 [label="模型先看证据判定实际状态\n再独立调用，核对 agent 的结论", fillcolor="#ede9fe", group=c];
+  c3 [label="程序分别统计两类正确率\n正常类：判正常；问题类：判对问题", fillcolor="#e0f2fe", group=c];
+  d3 [label="两类正确率取平均\n任务只有一类时，只用该类", fillcolor="#dcfce7", group=c];
+  a4 [label="RS：修复成功率\n修改后的目标通过验收了吗？", group=d];
+  b4 [label="先实际运行修改后的版本\n模型根据验收证据判断目标是否通过", fillcolor="#ede9fe", group=d];
+  c4 [label="程序统计相关修复目标\n排除修改前已通过的目标", fillcolor="#e0f2fe", group=d];
+  d4 [label="修改后通过的修复目标数\n÷ 纳入验收的修复目标数 × 100%", fillcolor="#dcfce7", group=d];
+  a5 [label="CP：正确性保持\n原本正确的内容被改坏了吗？", group=e];
+  b5 [label="运行前后版本，检查相同要求\n模型判断各要求的前后状态", fillcolor="#ede9fe", group=e];
+  c5 [label="程序选出修改前通过的要求\n按“版本变化 × 要求”统计", fillcolor="#e0f2fe", group=e];
+  d5 [label="修改后仍通过的项目数\n÷ 修改前通过的项目数 × 100%", fillcolor="#dcfce7", group=e];
+  a6 [label="VCS：完整闭环\n这一轮自检过程完整吗？", group=f];
+  b6 [label="复用前面标签及复查关联\n不再让模型重新评价整个过程", fillcolor="#ede9fe", group=f];
+  c6 [label="程序核对所有适用条件\n检查有效、判断正确\n有问题还需修复、agent 复查及正确性保持", fillcolor="#e0f2fe", group=f];
+  d6 [label="满足条件的检查轮次数\n÷ 纳入统计的检查轮次数 × 100%", fillcolor="#dcfce7", group=f];
+  a1 -> b1 -> c1 -> d1;
+  a2 -> b2 -> c2 -> d2;
+  a3 -> b3 -> c3 -> d3;
+  a4 -> b4 -> c4 -> d4;
+  a5 -> b5 -> c5 -> d5;
+  a6 -> b6 -> c6 -> d6;
+  {rank=same; a1; a2; a3; a4; a5; a6; a1 -> a2 -> a3 -> a4 -> a5 -> a6 [style=invis];}
+  {rank=same; b1; b2; b3; b4; b5; b6; b1 -> b2 -> b3 -> b4 -> b5 -> b6 [style=invis];}
+  {rank=same; c1; c2; c3; c4; c5; c6; c1 -> c2 -> c3 -> c4 -> c5 -> c6 [style=invis];}
+  {rank=same; d1; d2; d3; d4; d5; d6; d1 -> d2 -> d3 -> d4 -> d5 -> d6 [style=invis];}
+}

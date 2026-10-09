@@ -17,7 +17,7 @@ nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
 
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/research/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/research/playwright"
 
 "$vllm_bin" serve "$model_path" \
   --host 0.0.0.0 \
@@ -52,7 +52,7 @@ cd "$project_root"
 run_status=0
 for policy in full guarded_frontier guarded_frontier_text_only; do
   echo "[interactweb-repair] policy=$policy started_at=$(date -u +%FT%TZ)"
-  PYTHONPATH=src "$mmcode_python" research_run.py run \
+  PYTHONPATH=src "$mmcode_python" scripts/research/run.py run \
     --cases "$cases" \
     --output-root "$output_root" \
     --policy "$policy" \

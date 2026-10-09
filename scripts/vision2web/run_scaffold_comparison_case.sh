@@ -75,7 +75,7 @@ if [[ ! $wall_time =~ ^[1-9][0-9]*$ ]]; then
     exit 2
 fi
 proxy_port=4000
-proxy_venv="$project_root/.venvs/vision2web-litellm-proxy-py312"
+proxy_venv="$project_root/.local/venvs/vision2web-litellm-proxy-py312"
 run_root="$project_root/runs/vision2web_scaffold_comparison/$run_label"
 output_root="$run_root/agents"
 case_safe=${case_id//\//__}
@@ -285,13 +285,13 @@ if [[ $framework == openhands ]]; then
     if [[ $supports_vision != true ]]; then
         vision_requirement=(--no-openhands-require-vision)
     fi
-    "$python" agent_run.py "${common_args[@]}" \
+    "$python" scripts/agents/run.py "${common_args[@]}" \
         --vision2web-framework openhands \
         --openhands-profile official \
         --openhands-max-retries 0 \
         "${vision_requirement[@]}"
 else
-    "$python" agent_run.py "${common_args[@]}" \
+    "$python" scripts/agents/run.py "${common_args[@]}" \
         --vision2web-framework claude_code \
         --claude-max-retries 0
 fi

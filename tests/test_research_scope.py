@@ -72,7 +72,7 @@ class ResearchScopeTests(unittest.TestCase):
 
     def test_self_verify_runner_rejects_archived_manifest(self) -> None:
         spec = importlib.util.spec_from_file_location(
-            "self_verify_run_scope_test", PROJECT_ROOT / "self_verify_run.py"
+            "self_verify_run_scope_test", PROJECT_ROOT / "src/multimodalcode/research/self_verify_cli.py"
         )
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -85,10 +85,10 @@ class ResearchScopeTests(unittest.TestCase):
             module.load_cases(manifest, [], None)
 
     def test_legacy_forced_vision2web_loop_has_an_explicit_archive_guard(self) -> None:
-        source = (PROJECT_ROOT / "self_verify_run.py").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "src/multimodalcode/research/self_verify_cli.py").read_text(encoding="utf-8")
         self.assertIn("--allow-archived-forced-vision2web-loop", source)
         self.assertIn("legacy externally orchestrated Vision2Web", source)
-        self.assertIn("Use agent_run.py with --vision2web-mode", source)
+        self.assertIn("Use scripts/agents/run.py with --vision2web-mode", source)
 
 
 if __name__ == "__main__":

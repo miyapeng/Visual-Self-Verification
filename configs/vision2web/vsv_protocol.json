@@ -1,0 +1,97 @@
+{
+  "schema": "multimodalcode-vsv-judge-config-1",
+  "plan_max_tokens": 32768,
+  "plan_reasoning_effort": "low",
+  "primary_stage_profiles": {
+    "catalogue": "gemini3flash",
+    "plan_review": "gemini3flash",
+    "annotation": "gemini3flash",
+    "verification_annotation": "gemini3flash",
+    "text_vc": "gemini3flash",
+    "visual_vc": "gemini3flash",
+    "text_cv": "gemini3flash",
+    "visual_cv": "gemini3flash",
+    "text_bda": "gemini3flash",
+    "visual_bda": "gemini3flash",
+    "text_rs": "gemini3flash",
+    "visual_rs": "gemini3flash",
+    "text_cp": "gemini3flash",
+    "visual_cp": "gemini3flash",
+    "gui_step": "gemini3flash",
+    "text_observation": "gemini3flash",
+    "visual_observation": "gemini3flash",
+    "recheck_alignment": "gemini3flash"
+  },
+  "profiles": {
+    "qwen35": {
+      "provider": "openai-compatible",
+      "model": "qwen3.5-35b-a3b",
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key_env": "OPENAI_API_KEY",
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "max_tokens": 4096,
+      "timeout": 240,
+      "retries": 0,
+      "json_mode": true
+    },
+    "deepseek_flash": {
+      "provider": "openai-compatible",
+      "model": "deepseek-v4-flash",
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key_env": "OPENAI_API_KEY",
+      "thinking": {
+        "type": "enabled"
+      },
+      "reasoning_effort": "high",
+      "max_tokens": 16384,
+      "timeout": 900,
+      "retries": 0,
+      "json_mode": true
+    },
+    "gpt54": {
+      "provider": "openai-compatible",
+      "model": "gpt-5.4",
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key_env": "OPENAI_API_KEY",
+      "reasoning_effort": "low",
+      "max_tokens": 16384,
+      "timeout": 600,
+      "retries": 0,
+      "json_mode": true,
+      "label_images": true,
+      "structured_output": true
+    },
+    "gemini31": {
+      "provider": "openai-compatible",
+      "model": "gemini-3.1-pro-preview",
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key_env": "OPENAI_API_KEY",
+      "temperature": 1.0,
+      "reasoning_effort": "high",
+      "max_tokens": 16384,
+      "timeout": 900,
+      "retries": 0,
+      "json_mode": true,
+      "label_images": true,
+      "structured_output": true
+    },
+    "gemini3flash": {
+      "provider": "openai-compatible",
+      "model": "gemini-3-flash-preview",
+      "base_url": "${OPENAI_BASE_URL}",
+      "api_key_env": "OPENAI_API_KEY",
+      "temperature": 1.0,
+      "reasoning_effort": "high",
+      "max_tokens": 16384,
+      "timeout": 900,
+      "retries": 0,
+      "json_mode": true,
+      "label_images": true,
+      "structured_output": true
+    }
+  }
+}

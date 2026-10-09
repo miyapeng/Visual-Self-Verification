@@ -169,7 +169,7 @@ def _load_mini(mini_root: Path, tool_mode: str):
     except ImportError as exc:
         raise RuntimeError(
             "mini-swe-agent dependencies are missing. In the mmcode environment run: "
-            "python -m pip install -r /data/miyapeng/mmcode/MultimodalCode/requirements-agents.txt"
+            "python -m pip install -r /data/miyapeng/mmcode/MultimodalCode/requirements/agents.txt"
         ) from exc
     loaded_from = Path(minisweagent.__file__).resolve()
     if not loaded_from.is_relative_to(source):

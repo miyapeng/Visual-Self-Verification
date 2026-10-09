@@ -18,7 +18,7 @@ force=${VISION_FORCE:-0}
 proxy_port=${VISION_LITELLM_PORT:-4000}
 model_context=${VISION_MODEL_CONTEXT:-262144}
 model_max_output=${VISION_MODEL_MAX_OUTPUT:-8192}
-proxy_venv=${VISION_LITELLM_VENV:-$project_root/.venvs/vision2web-litellm-proxy-py312}
+proxy_venv=${VISION_LITELLM_VENV:-$project_root/.local/venvs/vision2web-litellm-proxy-py312}
 case_safe=${case_id//\//__}
 log_root="$project_root/runs/agent_smoke/jobs/vision2web/$model_name/$case_safe"
 mkdir -p "$log_root"
@@ -89,7 +89,7 @@ curl -fsS "$proxy_base/v1/models" >/dev/null
 
 cd "$project_root"
 agent_args=(
-    agent_run.py run vision2web "$case_id"
+    scripts/agents/run.py run vision2web "$case_id"
     --workspace /workspace
     --model "litellm_proxy/$served_model"
     --base-url "$proxy_base"

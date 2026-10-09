@@ -105,7 +105,7 @@ def test_legacy_mode_names_are_normalized_without_becoming_active_conditions():
 
 def test_guided_vsv_prompt_artifact_matches_runtime_constant():
     root = Path(__file__).resolve().parents[1]
-    frozen = (root / "prompts/vision2web/guided_vsv.txt").read_text(
+    frozen = (root / "configs/prompts/vision2web/guided_vsv.txt").read_text(
         encoding="utf-8"
     )
     assert frozen.rstrip("\n") == GUIDED_VSV_INSTRUCTION

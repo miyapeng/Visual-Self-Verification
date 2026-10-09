@@ -1,0 +1,22 @@
+# Commands
+
+Run these commands from the repository root. Reusable implementation lives in
+`src/multimodalcode/`; these entry points use it directly.
+
+| Entry | Purpose |
+| --- | --- |
+| `vsv/prepare_benchmark.py` | Import selected tasks and trajectories |
+| `vsv/prepare_catalogue.py` | Prepare task requirements with the configured Judge |
+| `vsv/extract.py` | Extract verification rounds; `--offline` emits rule candidates |
+| `vsv/evaluate.py` | Run the shared evaluator; `--check-only` validates inputs |
+| `vision2web/` | Web image recovery, replay and benchmark-specific commands |
+| `agents/run.py` | Run a coding-agent scaffold |
+| `run.py` | Run the existing single-pass generation/evaluation workflow |
+| `research/run.py`, `research/self_verify.py` | Run earlier research workflows |
+| `research/tmux.sh` | Manage research sessions |
+| `serving/run_4gpu_vllm.sh` | Launch the existing vLLM server configuration |
+
+Other subdirectories retain their named benchmark or cluster workflows. Consult
+[the scoring guide](../docs/VSV_SYSTEM.md),
+[benchmark adapters](../docs/VSV_BENCHMARKS.md) and
+[earlier workflows](../docs/LEGACY_WORKFLOWS.md) for required inputs and environments.

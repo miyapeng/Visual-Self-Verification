@@ -109,7 +109,7 @@ export HF_HOME="$scratch_root/cache/huggingface"
 export TORCHINDUCTOR_CACHE_DIR="$scratch_root/cache/torchinductor"
 export TRITON_CACHE_DIR="$scratch_root/cache/triton"
 export TMPDIR="$scratch_root/tmp"
-export PLAYWRIGHT_BROWSERS_PATH="$project_root/.runtime/research/playwright"
+export PLAYWRIGHT_BROWSERS_PATH="$project_root/.local/runtime/research/playwright"
 export NO_PROXY=localhost,127.0.0.1
 export no_proxy="$NO_PROXY"
 mkdir -p \

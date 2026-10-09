@@ -53,6 +53,7 @@ class _FakeJudge:
 class _HTTPResponse:
     def __init__(self, value):
         self.value = value
+        self.headers = {}
 
     def __enter__(self):
         return self

@@ -11,7 +11,7 @@ TARGET=registry.pjlab.org.cn/ccr-t-llm-frontier/vision2web
 TAG=official
 PINNED_TAG=official-577f939
 STATE="$PROJECT_ROOT/data/vision2web/image.json"
-SKOPEO="$PROJECT_ROOT/.envs/imgsync/bin/skopeo"
+SKOPEO="$PROJECT_ROOT/.local/envs/imgsync/bin/skopeo"
 
 export CONTAINERS_REGISTRIES_CONF="$PROJECT_ROOT/scripts/swe_mm/registries.conf"
 export NO_PROXY="registry.pjlab.org.cn,xceph-inside.pjlab.org.cn,localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}"

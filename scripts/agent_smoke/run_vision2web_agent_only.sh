@@ -16,7 +16,7 @@ python=/data/miyapeng/miniconda3/envs/mmcode/bin/python
 proxy_port=${VISION_LITELLM_PORT:-4000}
 model_context=${VISION_MODEL_CONTEXT:-262144}
 model_max_output=${VISION_MODEL_MAX_OUTPUT:-8192}
-proxy_venv=${VISION_LITELLM_VENV:-$project_root/.venvs/vision2web-litellm-proxy-py312}
+proxy_venv=${VISION_LITELLM_VENV:-$project_root/.local/venvs/vision2web-litellm-proxy-py312}
 server_state="$project_root/runs/agent_smoke/servers/$server_run/ready.json"
 case_safe=${case_id//\//__}
 
@@ -68,7 +68,7 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "$proxy_base/v1/models" >/dev/null
 cd "$project_root"
-"$python" agent_run.py run vision2web "$case_id" \
+"$python" scripts/agents/run.py run vision2web "$case_id" \
     --workspace /workspace \
     --model "litellm_proxy/$served_model" \
     --base-url "$proxy_base" \

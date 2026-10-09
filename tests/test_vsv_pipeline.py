@@ -12,7 +12,10 @@ CONFIG = ROOT / "configs/vision2web/vsv_smartrecruiters_pipeline.json"
 
 def real_config():
     config = json.loads(CONFIG.read_text())
-    if not all((ROOT / s["scores"]).exists() for s in config["stages"].values()):
+    required = [ROOT / s['scores'] for s in config['stages'].values()]
+    required += [ROOT / config['run_json'], ROOT / config['agent_task_root'] / 'prompt.txt',
+                 ROOT / config['scorer_task_root'] / 'prompt.txt', ROOT / config['scorer_task_root'] / 'workflow.json']
+    if not all(path.is_file() for path in required):
         pytest.skip("Local completed evaluation artifacts unavailable")
     return config
 
@@ -184,6 +187,8 @@ def test_configured_real_browser_smoke_joins_without_inventing_visual_scores(tmp
     if not path.is_file():
         pytest.skip('Local browser smoke artifact unavailable')
     value = json.loads(path.read_text())
+    if not Path(value['source_run']).is_file():
+        pytest.skip('Archived browser smoke source path unavailable on this machine')
     summary, complete = collect_repair(value, sha256(value['source_run']), Path)
     assert summary['protocol'] == 'configured-replay-2'
     assert summary['code_version_count'] == 4 and summary['transition_count'] == 3

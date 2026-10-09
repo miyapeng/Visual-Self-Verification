@@ -124,7 +124,7 @@ def source_patch(before: Path, after: Path, paths: list[str]) -> str:
 def checker_snapshot() -> dict[str, Any]:
     paths = [
         Path(__file__).resolve(),
-        PROJECT_ROOT / "research_run.py",
+        PROJECT_ROOT / "scripts/research/run.py",
         PROJECT_ROOT / "scripts/interactive_judge_playwright.js",
         MINI_SRC / "minisweagent/agents/default.py",
         MINI_SRC / "minisweagent/environments/local.py",

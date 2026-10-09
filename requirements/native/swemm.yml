@@ -1,0 +1,14 @@
+name: swemm
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - nodejs=20
+  - pip
+  - pip:
+      - -e evaluate/swe_mm/upstream
+      - -e .
+      - pillow
+      - playwright==1.60.0
+      - pytest

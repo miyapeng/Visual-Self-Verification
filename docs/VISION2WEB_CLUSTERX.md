@@ -145,7 +145,7 @@ The repository smoke scripts can start this proxy inside the ClusterX case
 container. The upstream image installs the LiteLLM SDK but not its proxy
 extras, and its unpinned FastAPI is incompatible with that proxy entry point.
 To avoid altering the frozen OpenHands environment, the scripts use the
-separate reusable venv `.venvs/vision2web-litellm-proxy-py312`, pinned to
+separate reusable venv `.local/venvs/vision2web-litellm-proxy-py312`, pinned to
 `litellm[proxy]==1.79.0` and `fastapi==0.115.14`. Only the OpenAI-compatible
 request transport and `/v1/model/info` capability declaration pass through
 this process; the OpenHands process continues to run with the packages from

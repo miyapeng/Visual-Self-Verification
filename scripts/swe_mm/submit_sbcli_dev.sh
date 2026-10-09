@@ -29,12 +29,12 @@ if summary["completed_agents"] != summary["denominator"]:
     )
 PY
 
-sb_cli=${SB_CLI:-$project_root/.envs/sbcli/bin/sb-cli}
+sb_cli=${SB_CLI:-$project_root/.local/envs/sbcli/bin/sb-cli}
 if [[ ! -x $sb_cli ]]; then
     sb_cli=$(command -v sb-cli || true)
 fi
 if [[ -z $sb_cli || ! -x $sb_cli ]]; then
-    echo "sb-cli is not installed. Create the isolated .envs/sbcli environment first." >&2
+    echo "sb-cli is not installed. Create the isolated .local/envs/sbcli environment first." >&2
     exit 1
 fi
 if [[ ! -s $predictions ]]; then

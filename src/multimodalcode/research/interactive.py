@@ -475,7 +475,7 @@ class InteractiveJudge:
         if environment.get("PLAYWRIGHT_BROWSERS_PATH"):
             return environment
         project_root = Path(__file__).resolve().parents[3]
-        isolated_browsers = project_root / ".runtime" / "research" / "playwright"
+        isolated_browsers = project_root / ".local/runtime" / "research" / "playwright"
         if isolated_browsers.is_dir():
             environment["PLAYWRIGHT_BROWSERS_PATH"] = str(isolated_browsers)
         return environment

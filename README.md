@@ -1,518 +1,96 @@
-# MultimodalCode
+# Visual Self-Verification
 
-## GitHub source backup
+Research code for evaluating how coding agents inspect their own outputs,
+judge the evidence, make repairs and check the result. The shared evaluator
+reports VC, CV, BDA, RS, CP and VCS with source evidence and model-call records.
 
-This repository backs up the Visual Self-Verification research code, configuration,
-tests, Markdown reports, and bundled evaluator/scaffold source. The CVPR 2027
-research entry is [reports/README.md](reports/README.md).
+Start with the [evaluation guide](docs/VSV_SYSTEM.md),
+[benchmark adapters](docs/VSV_BENCHMARKS.md) and
+[research reports](reports/README.md).
 
-Datasets, coding trajectories, generated report sites, screenshots, model weights,
-Python environments, caches, archives, and local credentials are intentionally
-excluded. Existing report links to those artifacts may therefore require the
-separate local/object-storage backup. Cloning this repository does not restore a
-complete experiment environment or establish that an experiment was reproduced.
-Historical absolute paths and service endpoints in experiment configurations
-must be adapted to the new machine before use. Keep credentials in environment
-variables or untracked local configuration.
-
-Bundled upstream source retains its existing license and provenance files; the
-source-only backup omits upstream data/media that those inventories may reference.
-
-`MultimodalCode` is a configuration-driven runner for multimodal web-code
-benchmarks. It separates three concerns that upstream projects often mix:
-
-1. dataset adaptation;
-2. model inference and artifact generation;
-3. benchmark-specific evaluation.
-
-It supports vLLM, SGLang, LMDeploy, any OpenAI-compatible endpoint, direct
-Transformers inference, and arbitrary executables through a JSON-over-stdin
-command backend.
-
-## Coding-agent benchmark path
-
-`run.py` is intentionally a single-pass generation/evaluation runner. For real
-coding-agent interaction, use `agent_run.py`: SWE-MM, Design2Code, and
-ChartMimic run through the repository-owned `scaffolds/mini_swe_agent`
-snapshot, while Vision2Web runs `scaffolds/openhands` inside the
-digest-pinned ClusterX task image. The image supplies only its Python 3.12 and
-system dependencies; `PYTHONPATH` makes the byte-pinned in-repository source
-authoritative. Vision2Web defaults to an unmodified `official` OpenHands
-profile; local compatibility/context overrides live under a separately named
-`research` profile and a separate result directory.
-
-## Active visual self-verification study
-
-The active paper studies whether a multimodal coding agent inspects and repairs
-its own rendered application. Vision2Web experiments use scaffold-specific
-conditions: OpenHands has `official`, `browser_enabled`, and `guided_vsv`;
-Claude Code has `official` and `guided_vsv` because its released scaffold
-already exposes `playwright-cli`.
-
-Start with [`reports/README.md`](reports/README.md) for active entry points,
-verified artifacts, and the distinction between current and historical scores.
-The canonical protocol is
-[`reports/visual_self_verification_two_level_evaluation_design.md`](reports/visual_self_verification_two_level_evaluation_design.md):
-trajectory-level observation and fresh-session checkpoint verification share
-one offline Test / Visual Judgment / Safe Repair evaluator. Vision2Web retains
-all three levels. Claude Code `official` is the primary generation baseline;
-OpenHands `browser_enabled` is the scaffold comparison. Guided prompts and
-cross-model verification handoff are supplementary analyses, not required loops.
-The earlier [`research plan`](visual_self_verification_research_plan.md) remains
-available as background, not the implementation-status entry point.
-The frozen guided prompt is
-[`prompts/vision2web/guided_vsv.txt`](prompts/vision2web/guided_vsv.txt).
-
-### Verification trajectory cropping
-
-`score_vsv.py --extract-only` extracts **all self-verification rounds**, including
-visual, text-only and combined evidence, with references to relevant
-modifications and later checks. It uses one text-only `verification_annotation`
-stage with the existing JudgeClient, profiles, cache and raw responses:
-
-```
-original timeline → ID-paired candidates → batch annotation → rounds + references
-```
-
-```bash
-python3 scripts/vision2web/score_vsv.py \
-  --run-json path/to/trajectory/run.json \
-  --output-dir runs/vsv_eval/crop --extract-only
-```
-
-Configure `primary_stage_profiles.verification_annotation` in
-`configs/vision2web/vsv_scoring.json`, or use `--primary-profile NAME` with an
-existing configured endpoint. No task root, workflow, image pixels, coverage,
-replay, new snapshots, diff generation or scoring stage is loaded. The old
-scoring episode extractor and scoring definitions remain separate.
-
-The basic unit is one inspection attempt: operations → evidence → current
-response/judgment, if any. Complete calls are never split into script fragments.
-Independent evidence/judgments form separate rounds even within one survey plan;
-multiple findings, necessary navigation and failed retries may share a round.
-A new check after a recorded implementation change is a new round. Prototype
-understanding is excluded, and checks without judgments are retained.
-
-Outputs include `candidate_windows.json`, `verification_rounds.json`,
-`model_annotations.json`, `visual_verification_rounds.json`, and
-`other_verification_rounds.json`. The canonical round record has 11 fields:
-
-| Field | Purpose |
-| --- | --- |
-| `episode_id` | Stable identity of this check round |
-| `candidate_ids` | Trace the round back to the supplied candidate calls and model annotations |
-| `verification_kind` | Image/capture operation or attempt (`visual`), otherwise `non_visual` |
-| `evidence_modalities` | `image` and/or `text` actually returned in this core, or `[]` |
-| `core_event_ids` | Ordered original operations, paired returns and model responses |
-| `judgment_event_ids` | Expressed judgments linked by the annotation stage; possibly empty |
-| `context_event_ids` | Shared capture sources, earlier evidence and necessary background |
-| `evidence_states` | Image input IDs, producer IDs and capture/read version hashes |
-| `program_sha256` | Recorded implementation state of this round, possibly unknown |
-| `repair_links` | Related edit IDs, later episode IDs and original relationship evidence |
-| `relation_annotation_complete` | Whether the model received complete relation context |
-
-`verification_rounds.json` stores raw `events` **once at the top level**.
-Rounds and candidate metadata reference them by original IDs. Candidate `windows`
-use `event_ids`, with image-source references and image-file availability; they
-contain no repeated event bodies. A missing file never removes recorded evidence.
-The source trajectory hash and existing resource/version references are retained.
-
-Call/result pairing is read from the original `tool_call_id`; a separate
-`check_calls` copy is unnecessary. Round bounds are `min/max(core_event_ids)`;
-model responses are the core events of kind `model_text` or `reasoning`.
-Modification/recheck references exist only inside `repair_links`, not as duplicate
-flattened lists. A link has `repair_event_ids`, `recheck_episode_ids` and
-`evidence_event_ids`; it preserves which modifications belong to which rechecks.
-Historical images are determined from their capture/read hashes when both are
-known; unknown hashes remain unknown.
-
-`verification_kind` routes operations, not semantic targets: text-only diagnostics
-may concern visual assets. `evidence_modalities` counts current tool returns,
-not model narration or old context. Missing judgments, failed attempts and missing
-returns stay in the same record format. An error return is not proof of an
-application defect. No target IDs, coverage or correctness scores are inferred.
-
-Counts are computed from these records; there are no repeated category ID lists.
-Image receipt, visual attempts without images and nonvisual checks partition the
-rounds. Mixed text/image evidence overlaps the image group and is not added to
-the total. The visual and other JSON files are review views of the same records,
-with subset counts and `source_rounds` pointing to the canonical file. Relations
-outside a subset resolve there. Visual views include attempts without images;
-the other view remains `record_only`, without a new scoring definition.
-
-The top-level original event ledger includes paired returns and original edits,
-including `file_path`, `old_string` and `new_string`. Shared/batch captures stay
-context references; they are not expanded into continuous spans containing other
-checks. Modification and future recheck events stay outside the check core.
-References establish association, not repair success or regression safety.
-The program checks ID membership, complete calls, core ownership, session/state
-boundaries and relation timing. An unknown image producer/state remains unknown;
-reading an old image does not turn it into post-edit evidence.
-
-Annotation first tries one complete evidence packet. Over
-`--verification-max-input-chars` (default 240,000 characters, including prompts),
-it packs whole candidate calls and reserves room for producer sources, neighboring
-checks and whole edit records. Original global IDs remain unchanged. Batches
-record omitted candidate/edit IDs; `annotation_limitations` and each round's
-`relation_annotation_complete` explicitly flag incomplete relation context.
-An absent cross-batch link is not a negative finding. Oversized individual calls,
-malformed JSON and invalid relations raise without schema-correction loops.
-`judge_cache/verification_annotation/` preserves requests and raw responses.
-
-`--offline` writes only unfiltered `candidate_windows.json`, explicitly marked
-`rule_candidates_only`, without loading a model configuration or either scoring
-or annotation stages.
-
-To review rounds, shared sources, edits and rechecks in one portable HTML file:
-
-```bash
-python3 scripts/vision2web/render_vsv_windows.py \
-  --input runs/vsv_eval/crop/verification_rounds.json \
-  --output runs/vsv_eval/crop/review.html
-```
-
-The viewer defaults to rounds with actual image inputs; all checks, nonvisual
-checks, visual attempts without images, mixed evidence and errors can be
-filtered separately. All images are embedded for download and local opening.
-Core evidence, background and later modifications are displayed separately,
-with recheck navigation. No recorded command or scoring operation is executed.
-
-## Included benchmark registrations
-
-| Name | Data source | Evaluation |
-|---|---|---|
-| `design2code` | `data/design2code`, 484 pairs | Vendored Design2Code Block-Match, Text, Position, Color, CLIP |
-| `flame-react-eval` | `data/flame-react-eval`, official 80 items | Flame-compatible code score and image cosine/pass@k |
-| `web2code` | `data/web2code`, 1,198-image subset | Web2Code ten-criterion VLM judge |
-| `ui2code-real` | `data/ui2code-real`, 115 screenshots | UI2Code_N two-image 0–100 VLM judge |
-
-All four registered datasets and their required benchmark source files are
-inside this repository. No runtime path points to `../UI2Code_N` or
-`../Benchmarks`. Provenance and copied licenses are recorded in
-[`evaluate/README.md`](evaluate/README.md).
-
-The coding-agent path additionally has task/scaffold integrations for SWE-MM,
-ChartMimic, and Vision2Web. Their official evaluator sources are frozen under
-`evaluate/` and no longer read sibling benchmark checkouts. Runtime protocol
-requirements—SWE instance images, ChartMimic's pinned Python environment, and
-Vision2Web's Docker boundary—are tracked in `evaluate/README.md`.
-
-FronTalk is self-contained and intentionally uses its released native
-multi-turn protocol instead of the generic `run.py` or `agent_run.py` paths.
-InteractWeb-Bench source and past runs are retained only as archived
-exploratory evidence and are not part of the current paper. The authoritative
-three-benchmark scope is recorded in
-[`reports/research_scope_decision.md`](reports/research_scope_decision.md).
-
-## Installation
-
-Use the existing `mmcode` environment:
-
-```bash
-cd /data/miyapeng/mmcode/MultimodalCode
-conda activate mmcode
-
-python -m pip install -r requirements.txt
-python -m playwright install chromium
-# Run once as root if Chromium reports missing Linux shared libraries:
-python -m playwright install-deps chromium
-```
-
-The runner talks to vLLM over HTTP, so the vLLM server may use a separate
-environment. If `vllm serve` already works in an existing environment, there
-is no need to reinstall it. `requirements.txt` intentionally does not pin
-vLLM, Torch, CUDA, or FlashAttention, so it does not replace the GPU stack in
-the existing `mmcode` environment.
-
-For direct Hugging Face/Transformers inference:
-
-```bash
-python -m pip install transformers accelerate
-```
-
-The project requirements contain only Design2Code's evaluation-time packages.
-Do not install the upstream Design2Code repository's entire
-`requirements.txt` into the vLLM environment: it contains unrelated training
-packages and pins its own Torch/FlashAttention versions.
-
-## Dataset inspection
-
-```bash
-python run.py list
-python run.py inspect design2code --limit 1
-```
-
-All paths are registered in
-[`configs/benchmarks.json`](configs/benchmarks.json). A different registry can
-be selected with `--config` or `MULTIMODALCODE_CONFIG`.
-
-## Normal vLLM workflow
-
-Start the model:
-
-```bash
-CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=1 \
-vllm serve /data/miyapeng/model/Qwen3-VL-30B-A3B \
-  --host 0.0.0.0 \
-  --port 8001 \
-  --served-model-name Qwen3-VL-30B-A3B-Instruct \
-  --gpu-memory-utilization 0.98 \
-  --max-model-len 16384
-```
-
-Then run the selected benchmarks:
-
-```bash
-python run.py \
-  design2code flame-react-eval web2code ui2code-real \
-  --output-root runs/Qwen3-VL-30B-A3B-Instruct \
-  --backend vllm \
-  --model Qwen3-VL-30B-A3B-Instruct \
-  --base-url http://127.0.0.1:8001/v1 \
-  --workers 4 \
-  --render-workers 4 \
-  --judge-workers 4
-```
-
-This runs inference, renders the generated pages, and calls each benchmark's
-registered evaluator. For Web2Code and UI2Code-Real, the same vLLM endpoint is
-also used as the visual judge by default. To use a different judge, add:
-
-```bash
-  --judge-backend openai-compatible \
-  --judge-model YOUR_JUDGE_MODEL \
-  --judge-base-url https://api.openai.com/v1
-```
-
-`--base-url` must include `/v1` for the usual vLLM deployment. The runner adds
-`/chat/completions`.
-
-For a two-item smoke test, append `--limit 2`. Runs are resumable by default.
-Successful `item_id + sample_index` pairs are skipped.
-
-## Four-GPU replica evaluation
-
-When the model fits on one GPU, four independent vLLM replicas provide more
-benchmark throughput than four-way tensor parallelism. The bundled script
-starts one replica on each physical GPU at ports 8001 through 8004, waits for
-all endpoints, distributes generation and judge requests round-robin, and
-stops the replicas after model-based scoring:
-
-The script deliberately uses two separate Conda environments regardless of
-which environment is active in the current shell:
-
-- `/data/miyapeng/miniconda3/envs/vllm/bin/vllm` starts the four servers;
-- `/data/miyapeng/miniconda3/envs/mmcode/bin/python` runs rendering and
-  evaluation.
-
-```bash
-# Smoke test
-bash scripts/run_4gpu_vllm.sh --limit 2
-
-# Full run
-bash scripts/run_4gpu_vllm.sh
-```
-
-If generation has already completed, resume from rendering with the same
-output directory. Successful prediction and render records are skipped:
-
-```bash
-START_STAGE=render \
-OUTPUT_ROOT=runs/Qwen3-VL-30B-A3B-Instruct-4gpu \
-bash scripts/run_4gpu_vllm.sh
-```
-
-Other resume points are `START_STAGE=judge` and
-`START_STAGE=design2code`. Override `VLLM_ENV_PREFIX` or
-`EVAL_ENV_PREFIX` only when the Conda environments live elsewhere.
-
-Defaults match the Qwen model path used above. They can be overridden without
-editing the script:
-
-```bash
-GPU_IDS="0 1 2 3" \
-MODEL_PATH=/data/miyapeng/model/Qwen3-VL-30B-A3B \
-SERVED_MODEL_NAME=Qwen3-VL-30B-A3B-Instruct \
-BASE_PORT=8001 \
-WORKERS=8 \
-bash scripts/run_4gpu_vllm.sh --limit 2
-```
-
-Web2Code and UI2Code-Real reuse the four Qwen replicas as their judge unless
-separate `--judge-*` arguments are supplied. The script then stops all four
-replicas and runs the local Design2Code CLIP metric on physical GPU 0; set
-`LOCAL_EVAL_GPU` to change that GPU. Self-judging runs end to end but are not
-directly comparable with results produced using the benchmark's designated
-judge model.
-
-An already-running replica pool can also be supplied manually:
-
-```bash
-python run.py ui2code-real web2code \
-  --output-root runs/qwen-pool \
-  --backend vllm \
-  --model Qwen3-VL-30B-A3B-Instruct \
-  --base-url \
-  http://127.0.0.1:8001/v1,http://127.0.0.1:8002/v1,http://127.0.0.1:8003/v1,http://127.0.0.1:8004/v1 \
-  --workers 8 --render-workers 4 --judge-workers 8
-```
-
-## Individual and staged commands
-
-```bash
-python run.py generate ui2code-real \
-  --run-dir runs/Qwen3-VL-30B-A3B-Instruct/ui2code-real \
-  --backend vllm \
-  --model Qwen3-VL-30B-A3B-Instruct \
-  --base-url http://127.0.0.1:8001/v1
-
-python run.py render \
-  --run-dir runs/Qwen3-VL-30B-A3B-Instruct/ui2code-real
-
-python run.py evaluate \
-  --run-dir runs/Qwen3-VL-30B-A3B-Instruct/ui2code-real \
-  --judge-backend vllm \
-  --judge-model Qwen3-VL-30B-A3B-Instruct \
-  --judge-base-url http://127.0.0.1:8001/v1
-```
-
-The same Python entry also supports staged cluster jobs. Render-only and
-local-metric evaluation stages do not require dummy model arguments:
-
-```bash
-# GPU generation job
-python run.py design2code web2code ui2code-real \
-  --output-root runs/my-vlm \
-  --stages generate \
-  --backend vllm --model my-vlm \
-  --base-url http://127.0.0.1:8000/v1
-
-# CPU/browser job
-python run.py design2code web2code ui2code-real \
-  --output-root runs/my-vlm \
-  --stages render
-
-# Judge/metric job
-python run.py design2code web2code ui2code-real \
-  --output-root runs/my-vlm \
-  --stages evaluate \
-  --judge-backend openai-compatible \
-  --judge-model YOUR_JUDGE_MODEL \
-  --judge-base-url https://api.openai.com/v1
-```
-
-Use `--overwrite` only when previous artifacts should be regenerated.
-
-## Direct Transformers and custom deployments
-
-```bash
-python run.py generate ui2code-real \
-  --run-dir runs/local-model/ui2code-real \
-  --backend transformers \
-  --model /path/to/model \
-  --trust-remote-code \
-  --workers 1
-```
-
-The command backend receives one JSON object on stdin:
-
-```json
-{
-  "prompt": "...",
-  "image_paths": ["/absolute/image.png"],
-  "max_tokens": 8192,
-  "temperature": 0.0,
-  "system_prompt": null
-}
-```
-
-It may return plain text or `{"output": "..."}`:
-
-```bash
-python run.py generate ui2code-real \
-  --run-dir runs/custom/ui2code-real \
-  --backend command \
-  --model custom \
-  --command 'python /path/to/adapter.py'
-```
-
-## Output layout
+## Layout
 
 ```text
-runs/<model>/<benchmark>/
-├── run.json
-├── predictions.jsonl
-├── raw/
-├── html/
-├── sites/
-├── rendered/
-├── renders.jsonl
-├── scores.jsonl
-├── generation_summary.json
-├── render_summary.json
-└── evaluation_summary.json
+src/multimodalcode/     Core implementation
+  vsv_eval/            Extraction, judges, scoring and acceptance
+  agent_harness/       Agent integration and trajectory recording
+  research/            Research workflows
+scripts/               Commands, grouped by workflow and benchmark
+  vsv/                 Shared import, extraction and evaluation
+  vision2web/          Web replay and image recovery
+  agents/              Coding-agent launcher
+  research/            Research launchers
+  serving/             Model-server launcher
+evaluate/              Upstream evaluators and benchmark source
+  benchmarks/          Full local benchmark checkouts
+configs/               Experiment settings, Judge profiles and prompts
+requirements/          Environment-specific dependencies
+tests/                 Project tests
+docs/                  Guides and protocol history
+reports/               Research findings and local report artifacts
+scaffolds/             Pinned agent framework source
+data/                  Local datasets and task material
+runs/                  Local trajectories and evaluation outputs
+.local/                Local environments, caches and maintenance backups
 ```
 
-Raw model responses are always retained. HTML extraction and React wrapping
-produce derived artifacts without destroying the raw output.
+See [the layout guide](docs/REPOSITORY_LAYOUT.md) for previous-to-current path
+mappings and [the command index](scripts/README.md) for entry points.
 
-## Evaluation fidelity
+## Evaluate trajectories
 
-### Design2Code
+The shared workflow has adapters for Vision2Web, SWE-bench Multimodal,
+3DCodeBench and GameDevBench. Usable evidence and runtime support determine
+which stages can execute; adapter availability does not imply a reproduced
+benchmark score. [The adapter guide](docs/VSV_BENCHMARKS.md) documents the
+requirements and current limits.
 
-The runner materializes reference HTML from the local data and invokes the
-vendored `visual_eval_v3_multi` implementation. It reports the five official
-dimensions. The source code and placeholder image are project-local. The
-OpenAI CLIP ViT-B/32 checkpoint is not present in the source checkout and may
-still be downloaded on first use unless it is already cached.
-
-The released `visual_score.py` contains a whitespace error around its
-empty-block handling branch. The isolated driver repairs only that known
-syntax error in memory; it does not modify the vendored reference file.
-
-### Flame
-
-The released Flame evaluator is incomplete: its shell script refers to missing
-files, and the visual metric expects an unpublished image-embedding service.
-The available reference evaluator and 80-item dataset are stored locally.
-
-If `FLAME_EMBEDDING_URL` is set to a compatible `/infer` endpoint returning
-`last_hidden_state_list`, MultimodalCode uses the Flame embedding-cosine
-method. Otherwise it emits a clearly labelled **non-official pixel-cosine
-fallback**. The code score and pass@k aggregation follow the released Flame
-logic.
+Run from this directory in a prepared Python environment:
 
 ```bash
-export FLAME_EMBEDDING_URL=http://HOST:PORT/infer
+# Inspect inputs without model calls or application execution.
+python scripts/vsv/evaluate.py \
+  --manifest path/to/experiment.json \
+  --output-dir runs/vsv_eval/experiment --check-only
+
+# Run with the Judge configuration and credentials specified by the manifest.
+python scripts/vsv/evaluate.py \
+  --manifest path/to/experiment.json \
+  --output-dir runs/vsv_eval/experiment
+
+# Extract rule candidates without an API call.
+python scripts/vsv/extract.py \
+  --run-json path/to/run.json \
+  --output-dir runs/vsv_eval/candidates --offline
 ```
 
-Use multiple samples for meaningful pass@k:
+`requirements.txt` includes the base dependencies from `requirements/base.txt`.
+Agent and benchmark environments use the separate files described in
+[requirements/README.md](requirements/README.md). Native benchmark runtimes
+have additional requirements; installing this package alone does not recreate
+those environments. Keep API credentials in environment variables or ignored
+local configuration.
 
-```bash
-python run.py generate flame-react-eval \
-  --run-dir runs/my-vlm/flame-react-eval \
-  --backend vllm --model my-vlm \
-  --base-url http://127.0.0.1:8000/v1 \
-  --samples 5 --temperature 0.8
-```
-
-Flame JSX is converted to a browser harness using pinned React and Babel CDN
-assets. The current machine's package proxy returned HTTP 403 when those
-browser assets were requested, so they could not be vendored in this pass.
-Flame rendering therefore still needs access to those pinned URLs. Pages
-importing additional third-party packages may require a custom React renderer.
-
-### Web2Code
-
-The ten questions and four aggregate dimensions follow the released Web2Code
-visual-judge implementation. The local data contains one prompt per 1,198
-unique image, not the full 5,990-row upstream evaluation file; results must be
-described as the UI2Code_N-preprocessed Web2Code subset.
+The existing single-pass and research workflows remain available through
+`scripts/run.py`, `scripts/agents/run.py` and `scripts/research/`.
+Their earlier documentation is preserved in [LEGACY_WORKFLOWS.md](docs/LEGACY_WORKFLOWS.md).
 
 ## Tests
 
-Core tests do not require a GPU or browser:
+In an environment with the required test dependencies:
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests -v
+PYTHONPATH=src python -m pytest tests/test_vsv*.py -q
 ```
+
+Pytest writes its cache to `.local/cache/pytest/`. Some integration tests need
+local experiment fixtures or external runtimes; see their skip/failure messages.
+
+## Source and experiment artifacts
+
+Git tracks source, configuration, tests, Markdown reports and pinned upstream
+source with its provenance. Datasets, trajectories, model weights, environments,
+credentials, generated sites and full benchmark clones are excluded. A source
+clone alone does not restore historical experiments. See
+[evaluator provenance](evaluate/README.md) and
+[full benchmark revisions](evaluate/benchmarks/sources.json).

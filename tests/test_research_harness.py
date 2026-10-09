@@ -41,7 +41,7 @@ from multimodalcode.research.planner import OneShotActionPlanner
 from multimodalcode.research.schema import ActionPlan
 from multimodalcode.research.tools import SafeFileToolExecutor, parse_revision
 from multimodalcode.schema import GenerationRequest
-from research_run import _load_cases
+from multimodalcode.research.cli import _load_cases
 
 
 def _fixture_plan() -> ActionPlan:

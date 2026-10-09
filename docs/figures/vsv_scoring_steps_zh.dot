@@ -1,0 +1,15 @@
+digraph Steps {
+  graph [rankdir=TB, bgcolor="#f8fafc", pad="0.35", nodesep="0.2", ranksep="0.24", fontname="Droid Sans Fallback", fontsize=25, label="一条轨迹怎样得到六项分数", labelloc=t];
+  node [shape=box, style="rounded,filled", fillcolor="white", color="#cbd5e1", fontname="Droid Sans Fallback", fontsize=17, margin="0.25,0.19", width=8.1];
+  edge [color="#64748b", arrowsize=0.75];
+  s1 [label="1．整理原始材料【程序】\n输入：任务要求、原型、轨迹、图像、可恢复的代码版本\n产出：调用与返回配对，保留图像来源和版本编号"];
+  s2 [label="2．确定要检查哪些要求【模型＋程序】\n根据任务与原型建立固定要求清单，每项有唯一编号\n产出：同一个任务的不同 agent 共用一份清单", fillcolor="#ede9fe"];
+  s3 [label="3．提取检查轮次【程序＋模型】\n程序建立短候选；模型筛选、分组并关联修改和复查\n产出：检查轮次 → 相关修改 → 后续检查的原始引用", fillcolor="#ede9fe"];
+  s4 [label="4．逐轮评判检查与判断【分别调用模型】\n覆盖：检查到了哪些要求？\n有效性：方法是否合理，证据是否足够？\n观察：先看证据，判断当时产物的状态\n判断：再看 agent 的结论，是否判断正确？\n产出：VC／CV／BDA 所需标签，并对齐后续复查目标", fillcolor="#ede9fe"];
+  s5 [label="5．验收相关修改【程序执行＋模型判断】\n程序在修改前后版本执行对应测试、交互或渲染\n模型判断：目标修好了吗？原本正确的内容被改坏了吗？\n产出：RS／CP 所需的前后状态标签", fillcolor="#ede9fe"];
+  s6 [label="6．核对这一轮是否完整【程序】\n读取前面的检查、判断、修复、保持与 agent 复查记录\n有问题：需要修复通过，并由 agent 自己有效复查\n无问题：不要求额外修改\n产出：每一轮的闭环结果，供 VCS 统计", fillcolor="#e0f2fe"];
+  s7 [label="7．按公式汇总【程序】\n输出 VC、CV、BDA、RS、CP、VCS 六项分数\n同时保存样本数、失败原因和原始证据编号", fillcolor="#dcfce7", color="#86efac"];
+  s1 -> s2 -> s3 -> s4 -> s5 -> s6 -> s7;
+  note [shape=plain, width=0, fontsize=13, fontcolor="#475569", label="箭头只表示阅读与处理顺序；已有清单、轮次或缓存可以复用。\n第 4 步只看当时已有的证据，不读取未来修改后的画面。\n第 5 步是评测器验收，不能冒充 agent 自己的复查。\n没有相关修改时，第 5 步无需执行；空分母不适用。"];
+  s7 -> note [style=invis];
+}

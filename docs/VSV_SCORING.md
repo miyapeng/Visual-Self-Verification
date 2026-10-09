@@ -1,5 +1,10 @@
 # Visual Self-Verification scoring
 
+This page describes the historical three-component evaluator. For the current
+six-metric implementation, use [the scoring system](VSV_SYSTEM.md) and
+[the current protocol](self_verification_evaluation.md). The historical model
+assignments below are not the current experiment configuration.
+
 The scorer is offline: `workflow.json`, replay results, and Judge outputs are read only after the coding trajectory ends.
 
 ## Components
@@ -13,7 +18,7 @@ The scorer is offline: `workflow.json`, replay results, and Judge outputs are re
 | Safe Repair | `P_before/P_after` target and regression replay | text Judge selects patch-affected checks; VL Judge only resolves ambiguous visuals |
 | Summary | structured component results | `Qwen3.5-35B-A3B` |
 
-Claude Opus 4.8 is an audit Judge for non-Opus policies. `gpt-4o` audits Opus-generated trajectories. Audit disagreements require human adjudication and do not alter the reproducible primary score.
+Claude Opus 4.8 is an audit Judge for non-Opus policies. `gpt-4o` audits Opus-generated trajectories. Audit disagreements are recorded as unresolved fields and do not alter the reproducible primary score.
 
 ## 1. Parse without model calls
 
@@ -100,3 +105,7 @@ python scripts/vision2web/score_vsv.py \
 New trajectories store content-addressed program files at each recorded state. Historical trajectories without these blobs remain analyzable but some intermediate Safe Repair episodes cannot be replayed exactly.
 
 `scores.json` keeps the three components separate. There is deliberately no weighted total: action execution, workflow coverage, visual-judgment accuracy, target-fix rate, and regression-free rate have different denominators and missing-evidence rules.
+
+## Archived-text proxy estimates
+
+The opt-in `--text-proxy` workflow is documented in [VSV_TEXT_PROXY.md](VSV_TEXT_PROXY.md). It uses separate result files and does not replace execution-verified scoring.

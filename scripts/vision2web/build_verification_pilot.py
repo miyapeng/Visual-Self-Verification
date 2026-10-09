@@ -138,7 +138,7 @@ def main() -> int:
                     "public_materials": public_materials(case_id),
                     "verification_prompt": str(
                         PROJECT_ROOT
-                        / "prompts/vision2web/fresh_context_verification_probe.txt"
+                        / "configs/prompts/vision2web/fresh_context_verification_probe.txt"
                     ),
                     "workflow_visible_to_model": False,
                 }

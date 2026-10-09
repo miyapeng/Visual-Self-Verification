@@ -70,7 +70,7 @@
   "checkpoint_protocol": {
     "name": "checkpoint_verify",
     "context": "fresh session over a hash-verified runnable intermediate workspace and original public task inputs",
-    "prompt": "prompts/vision2web/checkpoint_verify.txt",
+    "prompt": "configs/prompts/vision2web/checkpoint_verify.txt",
     "entrypoint": "scripts/vision2web/build_checkpoint_tasks.py",
     "status": "active; four runtime-validated checkpoints from one task; cross-model inference not yet run"
   },
@@ -78,7 +78,7 @@
     {
       "name": "verification_handoff",
       "context": "separate session takes the entire verification attempt; no check/judge/repair role splitting",
-      "prompt": "prompts/vision2web/verification_handoff.txt",
+      "prompt": "configs/prompts/vision2web/verification_handoff.txt",
       "status": "optional analysis only; no automatic A-session resumption; no real A/B comparison yet"
     }
   ],
@@ -86,13 +86,13 @@
     {
       "name": "elicited_same_context_after_finish",
       "context": "continue an archived official session at its first FinishAction",
-      "prompt": "prompts/vision2web/same_context_self_check.txt",
+      "prompt": "configs/prompts/vision2web/same_context_self_check.txt",
       "status": "archived; not an active trajectory condition or current checkpoint entry point"
     },
     {
       "name": "fresh_context_verify_only",
       "context": "fresh session over a frozen generated code snapshot",
-      "prompt": "prompts/vision2web/fresh_context_verification_probe.txt",
+      "prompt": "configs/prompts/vision2web/fresh_context_verification_probe.txt",
       "status": "archived verify-only probe; superseded by checkpoint_verify, which permits evidence-based repair"
     }
   ],

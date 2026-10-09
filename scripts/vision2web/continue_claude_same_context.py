@@ -18,7 +18,7 @@ from multimodalcode.agent_harness.vision2web_trace import copy_program
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PROMPT = PROJECT_ROOT / "prompts/vision2web/same_context_self_check.txt"
+DEFAULT_PROMPT = PROJECT_ROOT / "configs/prompts/vision2web/same_context_self_check.txt"
 
 
 def main() -> int:

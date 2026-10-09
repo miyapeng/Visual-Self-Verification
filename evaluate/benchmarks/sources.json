@@ -1,0 +1,31 @@
+{
+  "recorded_on": "2026-10-08",
+  "checkouts": [
+    {
+      "directory": "3dcodebench",
+      "repository": "https://github.com/gaoypeng/3dcodebench.git",
+      "commit": "42c7780ed3fcbd466f17f058f62e7996233777f7",
+      "local_tracked_changes": []
+    },
+    {
+      "directory": "SWE-bench",
+      "repository": "https://github.com/SWE-bench/SWE-bench.git",
+      "commit": "02e7a74ffd0b707aab73d203fe87bdc7c76afc8e",
+      "local_tracked_changes": []
+    },
+    {
+      "directory": "Vision2Web",
+      "repository": "https://github.com/zai-org/Vision2Web.git",
+      "commit": "d80a4a3d0ea7326541ad87314294269a633789e4",
+      "local_tracked_changes": [
+        "M docker/build.sh"
+      ]
+    },
+    {
+      "directory": "gamedevbench",
+      "repository": "https://github.com/waynchi/gamedevbench.git",
+      "commit": "48488b8ed70a3a1b1108f9062ba1774deb75b07a",
+      "local_tracked_changes": []
+    }
+  ]
+}

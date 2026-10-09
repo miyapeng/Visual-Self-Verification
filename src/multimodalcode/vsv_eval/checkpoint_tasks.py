@@ -26,7 +26,7 @@ from .checks import action_groups
 from .episodes import _time, extract_episodes
 
 ROOT = Path(__file__).resolve().parents[3]
-PROMPT = ROOT / "prompts/vision2web/checkpoint_verify.txt"
+PROMPT = ROOT / "configs/prompts/vision2web/checkpoint_verify.txt"
 _HISTORY_DIRS = {".git", ".claude", ".playwright-cli", ".mmcode", "test_results"}
 _PRIVATE_NAMES = {"workflow.json", "scores.json", "trajectory.json", ".mmcode_case.json"}
 
@@ -447,7 +447,7 @@ def prepare_agent_case(sample: Path, workspace: Path, runtime_check: Path, *,
                          == task["original_prompt_sha256"]), None)
         if original is None:
             raise ValueError("Frozen original task prompt cannot be recovered")
-        template = ROOT / "prompts/vision2web/verification_handoff.txt"
+        template = ROOT / "configs/prompts/vision2web/verification_handoff.txt"
         prompt = template.read_text().strip().format(
             task_specification=original, launch_command=shlex.join(task["launch_command"]),
             launch_cwd=str(Path("/workspace") / task.get("launch_cwd", ".")))

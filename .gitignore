@@ -10,11 +10,12 @@ runs/
 evaluate/chartmimic/runtime/
 
 # Local datasets, trajectories, checkpoints, and execution environments.
-/data/
-/runs/
+/.local/
 /.runtime/
 /.envs/
 /.venvs/
+/data/
+/runs/
 .venv*/
 venv/
 node_modules/
@@ -103,3 +104,6 @@ Thumbs.db
 *.pickle
 *.joblib
 *.feather
+
+# Full local benchmark clones; track only the source inventory and guide.
+/evaluate/benchmarks/*/

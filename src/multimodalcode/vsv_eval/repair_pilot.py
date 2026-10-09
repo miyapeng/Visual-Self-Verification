@@ -18,7 +18,7 @@ def digest_tree(root):
 
 
 def reconstruct(fixture, spec, output):
-    """Only supports explicitly audited Edit-only intervals; fail on missing/ambiguous edits."""
+    """Replay audited edits and explicit resource moves; never execute historical shell commands."""
     fixture, output = Path(fixture).resolve(), Path(output).resolve()
     run = json.loads((fixture / 'trajectory/run.json').read_text())
     source = spec.get('version_source', {})
@@ -27,8 +27,39 @@ def reconstruct(fixture, spec, output):
     state = {p.relative_to(first).as_posix(): p.read_bytes() for p in first.rglob('*')
              if p.is_file() and '.playwright-cli' not in p.parts}
     edits, versions, touched = [], [], set()
+    events = run['timeline']
+    by_id = {e['ordinal']: e for e in events}
+    resource_path = source.get('resource_path', 'resources')
+    moves = {m['ordinal']: m for m in source.get('resource_moves', [])}
     if output.exists():
         raise FileExistsError(f'Reconstruction destination already exists: {output}')
+
+    def apply_edit(event, reverse=False):
+        if event.get('tool') != 'Edit' or event.get('kind') != 'action':
+            raise ValueError(f"Not an Edit action: {event['ordinal']}")
+        call_id = event.get('tool_call_id')
+        replies = [r for r in events if r.get('kind') == 'observation'
+                   and (r.get('payload') or {}).get('tool_use_id') == call_id]
+        if not call_id or len(replies) != 1 or replies[0].get('is_error'):
+            raise ValueError(f"No unique successful Edit result: {event['ordinal']}")
+        p = event['payload']
+        path = p['file_path'].removeprefix(source.get('source_prefix', '/workspace/app/'))
+        if path not in state or Path(path).is_absolute() or '..' in Path(path).parts:
+            raise ValueError(f'Unsafe or missing edit path: {path}')
+        old, new = (p['new_string'], p['old_string']) if reverse else (p['old_string'], p['new_string'])
+        text = state[path].decode()
+        count = text.count(old)
+        if not old or not count or (not p.get('replace_all') and count != 1):
+            raise ValueError(f"Ambiguous edit at {event['ordinal']}: {count}")
+        state[path] = (text.replace(old, new) if p.get('replace_all') else text.replace(old, new, 1)).encode()
+        return path, count
+
+    reverse_ids = source.get('reverse_edit_ordinals', [])
+    if reverse_ids != sorted(set(reverse_ids)) or not set(reverse_ids) <= set(spec['edit_ordinals']):
+        raise ValueError('Reverse edits must be ordered and replayed in the audited interval')
+    base_state = dict(state)
+    for eid in reversed(reverse_ids):
+        apply_edit(by_id[eid], reverse=True)
 
     def save(name, event):
         destination = output / name / 'app'
@@ -38,40 +69,42 @@ def reconstruct(fixture, spec, output):
             path.write_bytes(data)
         manifest = digest_tree(destination)
         # Runtime assets were excluded by the historical snapshot. Restore unchanged task inputs.
-        (destination / 'resources').symlink_to(fixture / 'agent_visible/resources', target_is_directory=True)
+        mount = destination / resource_path
+        if Path(resource_path).is_absolute() or '..' in Path(resource_path).parts:
+            raise ValueError('Unsafe resource mount')
+        mount.parent.mkdir(parents=True, exist_ok=True)
+        mount.symlink_to(fixture / 'agent_visible/resources', target_is_directory=True)
         row = {'version': name, 'after_event': event, 'workspace': str(destination.parent),
                'code_manifest': manifest, 'resource_root': str(fixture / 'agent_visible/resources'),
-               'edits': list(edits)}
+               'edits': list(edits), 'resource_path': resource_path}
         write_json(destination.parent / 'manifest.json', row)
         versions.append(row)
 
     save('V0', spec['base_before_event'] - 1)
     seen = []
-    events = run['timeline']
     for event in events:
         ordinal = event['ordinal']
         if ordinal not in spec['edit_ordinals']:
             continue
-        if event.get('tool') != 'Edit' or event.get('kind') != 'action':
-            raise ValueError(f'Not an Edit action: {ordinal}')
-        call_id = event.get('tool_call_id')
-        replies = [r for r in events if r.get('kind') == 'observation'
-                   and (r.get('payload') or {}).get('tool_use_id') == call_id]
-        if not call_id or len(replies) != 1 or replies[0].get('is_error'):
-            raise ValueError(f'No unique successful Edit result: {ordinal}')
-        p = event['payload']
-        path = p['file_path'].removeprefix(source.get('source_prefix', '/workspace/app/'))
-        if path not in state or Path(path).is_absolute() or '..' in Path(path).parts:
-            raise ValueError(f'Unsafe or missing edit path: {path}')
-        text, old, new = state[path].decode(), p['old_string'], p['new_string']
-        count = text.count(old)
-        if not old or not count or (not p.get('replace_all') and count != 1):
-            raise ValueError(f'Ambiguous old_string at {ordinal}: {count}')
-        state[path] = (text.replace(old, new) if p.get('replace_all') else text.replace(old, new, 1)).encode()
-        touched.add(path)
-        edits.append({'ordinal': ordinal, 'file': path, 'old_matches': count,
-                      'sha256': hashlib.sha256(state[path]).hexdigest()})
+        if ordinal in moves:
+            move = moves[ordinal]
+            command = (event.get('payload') or {}).get('command', '')
+            replies = [r for r in events if r.get('kind') == 'observation'
+                       and (r.get('payload') or {}).get('tool_use_id') == event.get('tool_call_id')]
+            if (event.get('kind') != 'action' or event.get('tool') != 'Bash'
+                    or hashlib.sha256(command.encode()).hexdigest() != move['command_sha256']
+                    or resource_path != move['from'] or len(replies) != 1 or replies[0].get('is_error')):
+                raise ValueError('Resource move differs from its audited command/result')
+            resource_path = move['to']
+            edits.append({**move, 'kind': 'resource_move'})
+        else:
+            path, count = apply_edit(event)
+            touched.add(path)
+            edits.append({'ordinal': ordinal, 'file': path, 'old_matches': count,
+                          'sha256': hashlib.sha256(state[path]).hexdigest()})
         seen.append(ordinal)
+        if reverse_ids and ordinal == max(reverse_ids) and state != base_state:
+            raise ValueError('Replayed reverse edits do not reproduce the archived base snapshot')
         if ordinal in spec['boundaries']:
             save(f'V{len(versions)}', ordinal)
     if seen != spec['edit_ordinals']:
@@ -81,7 +114,8 @@ def reconstruct(fixture, spec, output):
         raise ValueError(f'Reconstructed files disagree with final snapshot: {matches}')
     result = {'versions': versions, 'final_touched_files_match': matches,
               'source_run_sha256': hashlib.sha256((fixture / 'trajectory/run.json').read_bytes()).hexdigest(),
-              'scope': f"Audited Edit-only interval {spec['base_before_event']}–{max(spec['boundaries'])}; not a complete session replay."}
+              'scope': f"Audited edits/resource placement {spec['base_before_event']}–{max(spec['boundaries'])}; not a complete session replay.",
+              'version_source': source}
     write_json(output / 'reconstruction.json', result)
     return result
 

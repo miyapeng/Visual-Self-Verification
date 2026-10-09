@@ -1,0 +1,11 @@
+name: 3dcodebench
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r evaluate/benchmarks/3dcodebench/requirements.txt
+      - pytest
+      - -e .

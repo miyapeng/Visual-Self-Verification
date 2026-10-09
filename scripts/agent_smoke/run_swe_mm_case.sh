@@ -49,7 +49,7 @@ curl -fsS "$base_url/models" >/dev/null || {
 }
 
 cd "$project_root"
-"$python" agent_run.py run swe-mm "$instance_id" \
+"$python" scripts/agents/run.py run swe-mm "$instance_id" \
     --workspace /testbed \
     --model "$served_model" \
     --base-url "$base_url" \
