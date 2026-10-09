@@ -15,6 +15,9 @@ Run these commands from the repository root. Reusable implementation lives in
 | `research/run.py`, `research/self_verify.py` | Run earlier research workflows |
 | `research/tmux.sh` | Manage research sessions |
 | `serving/run_4gpu_vllm.sh` | Launch the existing vLLM server configuration |
+| `training/prepare.py` | Prepare handoffs, collect/review teacher suffixes and export SFT/RL datasets |
+| `training/train_sft.sh`, `training/train_rl.sh` | Launch the pinned ms-swift and verl integrations |
+| `training/smoke.py`, `training/check_upstream.py` | CPU Web smoke test and upstream interface checks |
 
 Other subdirectories retain their named benchmark or cluster workflows. Consult
 [the scoring guide](../docs/VSV_SYSTEM.md),

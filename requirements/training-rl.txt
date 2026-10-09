@@ -1,0 +1,4 @@
+# Install separately from the SFT environment. Follow pinned verl GPU installation guidance.
+verl @ git+https://github.com/verl-project/verl.git@fc72e2f384212470868a9928b62baedb9bcc3ff0
+playwright==1.60.0
+Pillow>=9.0

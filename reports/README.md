@@ -9,6 +9,8 @@ below are not results of this revision. Start with the [system guide](../docs/VS
 
 Runtime setup and real trajectory probes: [2026-10-08 validation](vsv_runtime_validation_20261008.md).
 
+Training integration and CPU checks: [ms-swift and verl integration](training_integration_20261009.md).
+
 Repository layout and migration checks: [reorganization report](repository_reorganization_20261008.md).
 
 Latest engineering update: [Automatic repair acceptance integration](vsv_acceptance_integration_20261008.md).

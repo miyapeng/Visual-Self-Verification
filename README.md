@@ -8,11 +8,16 @@ Start with the [evaluation guide](docs/VSV_SYSTEM.md),
 [benchmark adapters](docs/VSV_BENCHMARKS.md) and
 [research reports](reports/README.md).
 
+The [training guide](docs/VSV_TRAINING.md) describes prefix-conditioned teacher
+distillation with ms-swift and verification GRPO with verl. CPU integration has
+been checked; distributed GPU training and improvements remain unvalidated.
+
 ## Layout
 
 ```text
 src/multimodalcode/     Core implementation
   vsv_eval/            Extraction, judges, scoring and acceptance
+  training/            Handoffs, teacher collection, rewards and training adapters
   agent_harness/       Agent integration and trajectory recording
   research/            Research workflows
 scripts/               Commands, grouped by workflow and benchmark
@@ -21,6 +26,7 @@ scripts/               Commands, grouped by workflow and benchmark
   agents/              Coding-agent launcher
   research/            Research launchers
   serving/             Model-server launcher
+  training/            Data preparation, SFT/RL launchers and CPU smoke test
 evaluate/              Upstream evaluators and benchmark source
   benchmarks/          Full local benchmark checkouts
 configs/               Experiment settings, Judge profiles and prompts

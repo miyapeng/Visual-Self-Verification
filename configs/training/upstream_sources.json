@@ -1,0 +1,11 @@
+{
+  "ms-swift": {
+    "repository": "https://github.com/modelscope/ms-swift",
+    "tag": "v4.0.4",
+    "commit": "ba4631cd60e744e0c1a709068758480abfc429a5"
+  },
+  "verl": {
+    "repository": "https://github.com/verl-project/verl",
+    "commit": "fc72e2f384212470868a9928b62baedb9bcc3ff0"
+  }
+}

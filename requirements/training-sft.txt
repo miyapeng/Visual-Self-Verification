@@ -1,0 +1,2 @@
+# Install separately from the RL environment. Select CUDA/PyTorch for your hardware.
+ms-swift @ git+https://github.com/modelscope/ms-swift.git@ba4631cd60e744e0c1a709068758480abfc429a5

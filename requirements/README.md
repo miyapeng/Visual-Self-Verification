@@ -20,3 +20,8 @@ Conda specifications for recorded-trajectory evaluation are in
 `native/3dcodebench.yml` and `native/swemm.yml`. Run environment creation from the
 repository root. External renderer/browser setup is documented in
 [the runtime guide](../docs/VSV_RUNTIME_SETUP.md).
+
+`training-sft.txt` pins ms-swift; `training-rl.txt` pins verl. Install them in
+separate environments after selecting the hardware's compatible GPU stack.
+Do not add either framework to the evaluator environment. See
+[the training guide](../docs/VSV_TRAINING.md) for data, runtime and validation requirements.

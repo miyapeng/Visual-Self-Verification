@@ -1,0 +1,79 @@
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_files: ${oc.env:VSV_TRAIN_DATA}
+  val_files: ${oc.env:VSV_VALIDATION_DATA}
+  train_batch_size: 4
+  max_prompt_length: 16384
+  max_response_length: 8192
+  shuffle: false
+  filter_overlong_prompts: false
+  truncation: error
+  custom_cls:
+    path: pkg://multimodalcode.training.verl_integration
+    name: VerificationDataset
+
+actor_rollout_ref:
+  model:
+    path: ${oc.env:VSV_DISTILLED_MODEL}
+  actor:
+    ppo_mini_batch_size: 4
+    ppo_micro_batch_size_per_gpu: 1
+    loss_agg_mode: seq-mean-token-mean
+    use_kl_loss: true
+    kl_loss_coef: 0.001
+    optim:
+      lr: 1.0e-6
+  ref:
+    log_prob_micro_batch_size_per_gpu: 1
+  rollout:
+    name: vllm
+    n: 4
+    calculate_log_probs: true
+    log_prob_micro_batch_size_per_gpu: 1
+    multi_turn:
+      enable: true
+      format: hermes
+      max_assistant_turns: 32
+      max_user_turns: 32
+      max_parallel_calls: 32
+      max_tool_response_length: 32000
+    agent:
+      default_agent_loop: verification
+      agent_loop_config_path: ${oc.env:VSV_AGENT_LOOP_CONFIG}
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+
+verification:
+  include_task: false
+  local_kinds: [diagnosis]
+  local_weight: 1.0
+
+trainer:
+  use_v1: true
+  v1:
+    trainer_mode: verification_sync
+  project_name: visual-self-verification
+  experiment_name: diagnosis-grpo
+  logger: [console]
+  n_gpus_per_node: 1
+  nnodes: 1
+  total_epochs: 1
+  save_freq: 10
+  test_freq: 10
+
+ray_kwargs:
+  ray_init:
+    runtime_env:
+      env_vars:
+        VERL_USE_EXTERNAL_MODULES: multimodalcode.training.verl_integration
+        VSV_ROLLOUT_DIR: ${oc.env:VSV_ROLLOUT_DIR}

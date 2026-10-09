@@ -1,0 +1,2 @@
+- name: verification
+  _target_: multimodalcode.training.verl_integration.VerificationAgentLoop

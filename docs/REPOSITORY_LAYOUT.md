@@ -6,6 +6,8 @@ Run commands from the repository root unless a guide states otherwise.
 | Directory | Purpose |
 | --- | --- |
 | `src/multimodalcode/vsv_eval/` | Verification extraction, evidence links, judges, scoring and acceptance |
+| `src/multimodalcode/training/` | Shared handoffs, teacher distillation data, local rewards and verl integration |
+| `scripts/training/`, `configs/training/` | Training preparation, launchers and pinned framework settings |
 | `src/multimodalcode/agent_harness/` | Agent integration and trajectory recording |
 | `src/multimodalcode/research/` | Research workflow implementation |
 | `scripts/vsv/` | Shared evaluation and data preparation commands |

@@ -63,15 +63,35 @@ class OpenAICompatibleBackend(ModelBackend):
         if request.system_prompt:
             messages.append({"role": "system", "content": request.system_prompt})
         messages.append({"role": "user", "content": content})
+        result = self.generate_messages(messages, max_tokens=request.max_tokens,
+                                        temperature=request.temperature, seed=request.seed)
+        content_value = result['choices'][0]['message'].get('content')
+        if isinstance(content_value, list):
+            return ''.join(str(part.get('text', '')) for part in content_value if isinstance(part, dict))
+        return str(content_value or '')
+
+    def generate_messages(self, messages, *, max_tokens=4096, temperature=0, seed=None, tools=None):
+        """Continue native chat/tool history, returning the unmodified API response."""
+        import copy
+        messages = copy.deepcopy(messages)
+        for message in messages:
+            if isinstance(message.get('content'), list):
+                message['content'] = [
+                    {'type': 'image_url', 'image_url': {'url': _data_url(part['image'])}}
+                    if part.get('type') == 'image' else part for part in message['content']]
         payload: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
         }
-        if request.seed is not None:
-            payload["seed"] = int(request.seed)
+        if seed is not None:
+            payload["seed"] = int(seed)
+        if tools:
+            payload['tools'] = tools
         payload.update(self.extra_body)
+        if payload['messages'] != messages:
+            raise ValueError('extra_body must not replace the visible message history')
         body = json.dumps(payload).encode("utf-8")
         http_request = urllib.request.Request(
             self.endpoint,
@@ -91,15 +111,9 @@ class OpenAICompatibleBackend(ModelBackend):
         choices = result.get("choices") or []
         if not choices:
             raise RuntimeError(f"Model endpoint returned no choices: {result}")
-        message = choices[0].get("message") or {}
-        content_value = message.get("content")
-        if isinstance(content_value, list):
-            return "".join(
-                str(part.get("text", ""))
-                for part in content_value
-                if isinstance(part, dict)
-            )
-        return str(content_value or "")
+        if not choices[0].get('message'):
+            raise RuntimeError('Model endpoint returned no message')
+        return result
 
 
 class EndpointPoolBackend(ModelBackend):
