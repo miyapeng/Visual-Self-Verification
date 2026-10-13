@@ -13,14 +13,12 @@
     "visual_cv": "gemini3flash",
     "text_bda": "gemini3flash",
     "visual_bda": "gemini3flash",
-    "text_rs": "gemini3flash",
-    "visual_rs": "gemini3flash",
-    "text_cp": "gemini3flash",
-    "visual_cp": "gemini3flash",
     "gui_step": "gemini3flash",
     "text_observation": "gemini3flash",
     "visual_observation": "gemini3flash",
-    "recheck_alignment": "gemini3flash"
+    "implementation_boundary": "gemini3flash",
+    "text_acceptance": "gemini3flash",
+    "visual_acceptance": "gemini3flash"
   },
   "profiles": {
     "qwen35": {

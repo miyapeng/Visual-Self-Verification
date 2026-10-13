@@ -1,5 +1,9 @@
 # Visual Self-Verification scoring
 
+This guide documents the earlier protocol. For current metrics and execution, see
+[the evaluation specification](self_verification_evaluation.md) and
+[runner guide](VSV_SYSTEM.md).
+
 This page describes the historical three-component evaluator. For the current
 six-metric implementation, use [the scoring system](VSV_SYSTEM.md) and
 [the current protocol](self_verification_evaluation.md). The historical model

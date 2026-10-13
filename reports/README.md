@@ -1,11 +1,12 @@
 # Current research entry points
 
-Current protocol: [Finding-oriented diagnostics](../docs/self_verification_evaluation.md#finding-oriented-breakdowns)
-(`requirement-level-20261009`). Requirement-type coverage, visible-defect auditing,
-and per-attempt repair/regression breakdowns use the shared evaluator. The code
-has automated test coverage; fresh API judgments and complete observation/version
-inputs are still required for a new model comparison. Historical pilot scores
-below are not results of this revision. Start with the [system guide](../docs/VSV_SYSTEM.md).
+Current protocol: [Evidence, diagnosis and repair](../docs/self_verification_evaluation.md)
+(`evidence-diagnosis-repair-20261013`). The six metrics are VTR, VC, EDR, CAR, RSR
+and CPR. Coverage requires valid evidence, diagnosis opportunities come from a
+blind observation audit, and repair/preservation share version acceptance labels.
+See the [implementation and validation report](vsv_protocol_20261013.md) and
+[runner guide](../docs/VSV_SYSTEM.md). No new model scores were generated in this
+revision; archived scores require fresh judgments before comparison.
 
 Runtime setup and real trajectory probes: [2026-10-08 validation](vsv_runtime_validation_20261008.md).
 
@@ -13,7 +14,12 @@ Training integration and CPU checks: [ms-swift and verl integration](training_in
 
 Repository layout and migration checks: [reorganization report](repository_reorganization_20261008.md).
 
-Latest engineering update: [Automatic repair acceptance integration](vsv_acceptance_integration_20261008.md).
+## Archived evaluation revisions
+
+These reports describe their dated implementations and results. Metric names,
+scores and commands below must not be interpreted as the current protocol.
+
+Earlier engineering update: [Automatic repair acceptance integration](vsv_acceptance_integration_20261008.md).
 
 Earlier implementation revision: [Requirement-level protocol audit](vsv_requirement_level_audit_20261006.md).
 The results below are archived pilots; the new observation-first and scoped-recheck stages

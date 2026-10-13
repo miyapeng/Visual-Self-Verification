@@ -408,7 +408,11 @@ def evaluate_text_proxy(rounds_path, catalogue_path, task_root, config_path, out
     baseline = {}
     for eid, episode in seeds.items():
         vc[eid] = []
-        for target in episode['targets']:
+        observed = {t['target_id']: t for t in episode.get('assessments', [])}
+        for check in episode['targets']:
+            target = {**check, **observed.get(check['target_id'], {})}
+            if 'actual_state' not in target:
+                target.update(actual_state='unknown', agent_state='absent', issue_match=None, diagnosis_ids=[])
             tid = eid + ':' + target['target_id']
             baseline[tid] = target
             vc[eid].append({**{k: target[k] for k in ('target', 'check_id', 'coverage', 'evidence_ids', 'modality')},
@@ -477,10 +481,17 @@ def evaluate_text_proxy(rounds_path, catalogue_path, task_root, config_path, out
                         'preservation_states': [{'check_id': cid, 'before': cp[key]['before'], 'after': cp[key]['after']}
                                                 for key, cid in transition['cp_items'].items()]})
     episodes = [{'episode_id': e['episode_id'], 'status': 'evaluated' if targets[e['episode_id']] else 'excluded',
-                 'targets': targets[e['episode_id']], 'relation_annotation_complete': e['relation_annotation_complete'],
+                 'targets': targets[e['episode_id']],
+                 'assessments': [t for t in targets[e['episode_id']] if t['actual_state'] in {'pass','fail'}],
+                 'relation_annotation_complete': e['relation_annotation_complete'],
                  'repair_event_ids': sorted({i for link in e['repair_links'] for i in link['repair_event_ids']})}
                 for e in rounds['episodes']]
     metrics = summarize(catalogue, episodes, repairs)
+    # Proxy denominators are claim-derived, never comparable to the independent audit.
+    for name in ('EDR', 'CAR', 'EDR-V', 'CAR-V', 'EDR-T', 'CAR-T'):
+        missing = sum(t['actual_state'] == 'unknown' for e in episodes for t in e['targets'])
+        if missing:
+            metrics[name].update(score=None, status='incomplete', unassessed_count=missing)
     basis = {name.upper(): dict(Counter(row['evidence_basis'] for row in rows)) for name, rows in (
         ('vc', [t for rows in vc.values() for t in rows]), ('cv', cv.values()), ('bda', bda.values()),
         ('rs', [row for row in rs.values() if row['applicable']]), ('cp', cp.values()))}
@@ -501,18 +512,7 @@ def evaluate_text_proxy(rounds_path, catalogue_path, task_root, config_path, out
 
 
 def metric_display(name, row):
-    """Display whole-denominator bounds, never hide unknowns behind a subset rate."""
-    if name.startswith('BDA'):
-        if any(not (row[group]['denominator'] + row[group]['unknown_count']) for group in ('normal', 'error')):
-            return 'N/A (missing class)'
-        if row['score'] is None:
-            return f"{row['lower_bound']:.2f}–{row['upper_bound']:.2f}"
-    elif name == 'VC' and row['score'] is None:
-        return f"{row['lower_bound']:.2f}–{row['upper_bound']:.2f}"
-    elif row['unknown_count']:
-        total = row['denominator'] + row['unknown_count']
-        return f"{100 * row['success_count'] / total:.2f}–{100 * (row['success_count'] + row['unknown_count']) / total:.2f}"
-    return 'N/A' if row['score'] is None else f"{row['score']:.2f}"
+    return f"{row['score']:.2f}" if row['score'] is not None else row['status']
 
 
 def write_proxy_report(result, path):
@@ -520,16 +520,16 @@ def write_proxy_report(result, path):
         raise ValueError('Expected separate proxy results')
     lines = ['# Archived-text proxy estimates', '',
              'No image pixels or historical execution acceptance were used. These are not strict benchmark scores.',
-             'BDA supported only by agent_report measures self-report agreement, not independent correctness.',
+             'EDR/CAR proxy estimates use claim-derived conditions, not independent diagnosis opportunities.',
              f"Source rounds: `{result['source_rounds']}`. Extraction: `{result['extraction_status']}`.", '',
-             '| Metric | Estimate or range (0–100) | Success | Failure | Unknown |',
+             '| Metric | Proxy estimate (0–100) | Success | Failure | Unassessed |',
              '|---|---:|---:|---:|---:|']
     for name, row in result['metrics'].items():
-        lines.append(f"| {name} | {metric_display(name, row)} | {row['success_count']} | {row['failure_count']} | {row['unknown_count']} |")
+        lines.append(f"| {name} | {metric_display(name, row)} | {row['success_count']} | {row['failure_count']} | {row['unassessed_count']} |")
     lines += ['', '| Stage | Direct | Inferred | Agent report | Unavailable |', '|---|---:|---:|---:|---:|']
     for stage, counts in result['evidence_basis_counts'].items():
         lines.append('| ' + stage + ' | ' + ' | '.join(str(counts.get(k, 0)) for k in BASIS) + ' |')
-    lines += ['', 'Evidence counts refer to stage labels, not independent tasks. Bounds retain unknowns.',
+    lines += ['', 'Evidence counts refer to stage labels, not independent tasks. Missing evidence leaves estimates incomplete.',
               'CP covers extracted repair groups and their fixed catalogue conditions, not every trajectory edit.',
               'Raw responses and admissible event IDs are linked from scores.json and the stage label files.', '']
     Path(path).write_text('\n'.join(lines))

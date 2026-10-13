@@ -180,6 +180,39 @@ def test_fixed_diagnosis_reuses_bda_and_rejects_unseen_pixels(tmp_path):
         asyncio.run(evaluator.score([{'role': 'assistant', 'content': 'Fine'}], []))
 
 
+def test_training_acceptance_uses_shared_evaluator_profile(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    checks = [{'check_id': 'button', 'source_ref': 'task:0', 'setup': 'Inspect the page',
+               'criterion': 'Primary action is present', 'required_evidence': 'Screenshot', 'reference_ids': []}]
+    catalogue = {'schema': 'self-verification-catalogue-1', 'checks': checks,
+                 'source_ids': ['task:0'], 'references': {}, 'review': {'status': 'draft'},
+                 'criteria_sha256': content_hash(checks)}
+    write_json(tmp_path / 'catalogue.json', catalogue)
+    config = Path(__file__).resolve().parents[1] / 'configs/vision2web/vsv_protocol.json'
+    row = checkpoint(tmp_path)
+    row['evaluation'] = {'catalogue': str(tmp_path / 'catalogue.json'), 'allow_draft': True,
+                         'judge_config': str(config), 'acceptance_probes': [{'check_id': 'button'}]}
+    calls = []
+
+    def client(configuration, profile, cache_root, **kwargs):
+        assert profile in configuration['profiles']
+        def judge(stage, prompt, images, **kwargs):
+            calls.append(stage)
+            assert images == [str(tmp_path / 'observation.png')]
+            return {'request_sha256': 'fixture', 'parsed': {'checks': [
+                {'check_id': 'button', 'state': 'pass', 'evidence_ids': ['after:button']}]}}
+        return SimpleNamespace(cache_root=cache_root, judge=judge)
+
+    class Environment:
+        async def call(self, *args):
+            return {'assertions': [], 'observation': {'screenshot': str(tmp_path / 'observation.png')}}
+
+    monkeypatch.setattr('multimodalcode.training.reward.build_client', client)
+    evaluator = VerificationReward(row, tmp_path / 'acceptance')
+    assert asyncio.run(evaluator.acceptance(Environment(), 'after')) == {'button': 'pass'}
+    assert calls == ['visual_acceptance']
+
+
 def test_backend_native_history_and_images_use_existing_transport(tmp_path, monkeypatch):
     from multimodalcode.backends import OpenAICompatibleBackend
     import urllib.request

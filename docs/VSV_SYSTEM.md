@@ -1,27 +1,16 @@
 # Run the scoring system
 
-`scripts/vsv/evaluate.py` (also available at the original
-`scripts/vision2web/evaluate_vsv.py` path) runs the existing six-metric evaluator from
-one experiment manifest. It validates inputs, extracts rounds when requested,
-evaluates VC/CV/BDA, runs the existing version acceptance stage for RS/CP, and
-joins the results to compute VCS. It writes a comparison after each case and
-continues to other cases after a case fails.
+`scripts/vsv/evaluate.py` executes protocol `evidence-diagnosis-repair-20261013`:
+initial implementation boundary → attempted checks and validity → independent
+observations → agent verdicts → shared version acceptance → VTR/VC/EDR/CAR/RSR/CPR.
+[The evaluation specification](self_verification_evaluation.md) defines each
+population, label and denominator.
 
-Protocol `requirement-level-20261009` keeps six metrics and records its version
-with the frozen experiment. It never infers missing screenshots from agent claims
-or generates unverified code versions. See the current protocol for metric definitions. Prepare task criteria
-and runtime bindings with the existing `score_vsv.py --prepare-plan` workflow.
-Use the same frozen catalogue for models evaluated on the same task.
-
-The current revision adds requirement-type coverage, a visual defect audit in the
-existing OBSERVATION call, and a joint view of local repair and regression on each
-recorded version transition. See [the protocol](self_verification_evaluation.md#finding-oriented-breakdowns)
-for their denominators. These are evidence-based diagnostics, not predefined findings.
-Existing frozen catalogues without `requirement_types` remain readable but have no
-complete type breakdown. Their types are not guessed from agent behavior. Prepare a
-new reviewed catalogue to compare those breakdowns, shared by every model on that task.
-Older observation responses lack the defect audit and require fresh judgments;
-use a fresh experiment output directory instead of overwriting earlier results.
+Use the same frozen catalogue and acceptance conditions for models evaluated on
+the same task. Archived scores require fresh judgments under this protocol; use
+a new output directory. Raw trajectories, image reconstruction and audited
+version manifests remain reusable. CV is now a coverage criterion, EDR/CAR replace
+the class-averaged diagnosis score, and no extra recheck-alignment call is made.
 
 ## Manifest
 
@@ -37,6 +26,7 @@ state files retain their existing interpretation.
     {
       "id": "task-model",
       "model": "Coding model name",
+      "task_id": "task",
       "task_root": "task",
       "catalogue": "plan/catalogue.json",
       "rounds_json": "extraction/verification_rounds.json",
@@ -66,13 +56,13 @@ state files retain their existing interpretation.
 
 ```bash
 # No model calls or application execution. Lists input gaps for every case.
-python scripts/vision2web/evaluate_vsv.py \
+python scripts/vsv/evaluate.py \
   --manifest path/to/experiment.json --output-dir runs/vsv_eval/experiment \
   --check-only
 
 # Credentials are read by the existing JudgeClient from the environment.
 # Run this identical command again after a transient API failure.
-python scripts/vision2web/evaluate_vsv.py \
+python scripts/vsv/evaluate.py \
   --manifest path/to/experiment.json --output-dir runs/vsv_eval/experiment
 ```
 
@@ -87,8 +77,9 @@ validation rules; the system does not delete incomplete work to retry it.
 
 | File | Contents |
 | --- | --- |
-| `summary.json` | Every case, raw metric records, denominators, assessment status and result paths |
-| `comparison.csv`, `comparison.md` | Six metrics, evidence-modality groups, requirement coverage, visual-defect recognition, conditional repair and regression breakdowns |
+| `summary.json` | Every case, metric denominators, statuses, common-task model means and excluded tasks |
+| `<case>/checks/scope.json` | Initial implementation event ID and its cached annotation |
+| `comparison.csv`, `comparison.md` | Six point estimates and separate visual/text EDR/CAR breakdowns |
 | `model_calls.json` | Actual requests and cache hits for this invocation, grouped by stage |
 | `<case>/preflight.json` | Input problems, missing observations and unbound repair groups |
 | `<case>/final/scores.json` | Existing protocol result with validated source and response references |
@@ -97,19 +88,33 @@ The runner rejects missing, duplicate, reordered or pending rounds and missing
 repair acceptance groups before declaring completion. It distinguishes:
 
 - `completed`: every required stage finished; applicable metrics have scores.
-- `completed_with_unresolved_evidence`: stages finished but some evidence labels
-  are unknown. The command exits with code 2, not a misleading success status.
 - `blocked`: required input evidence or acceptance bindings are absent.
 - `failed`: a validation, model or execution call failed.
 - `ready`: input preflight passed; no evaluation was run in this invocation.
 
 Exit code 0 means all cases are completed (or ready in `--check-only` mode).
 Exit code 2 means at least one case requires attention. Invalid manifests raise
-before execution. Unknown labels are retained with existing bounds and counts;
-subset percentages are not displayed as full scores. `not_applicable` is used
-for an empty metric denominator. BDA averages diagnosis accuracy over the actual classes present in that task;
-a one-class task uses that class and reports its sample count. An empty metric
-denominator remains not applicable, rather than receiving an invented score.
+before execution. Applicable metrics are single percentages. Missing evidence or
+incomplete acceptance prevents completion; it is not converted to an agent failure
+or a guessed success. `not_applicable` means an empty opportunity denominator.
+The saved intermediate labels identify incomplete checks and state acceptance.
+
+`scope_max_input_chars` defaults to 500000. The boundary stage retains complete
+original events, removing only exact duplicate copies of paired action payloads.
+It rejects an input over budget instead of truncating code; increase the budget
+only when the selected judge supports the resulting context. All stages reuse
+JudgeClient profiles, raw response storage and caches. The default configuration
+uses `gemini-3-flash-preview`; no paid call is made by `--check-only`.
+
+For each uncached judgment prefix there are up to four role-specific calls:
+`*_vc`, `*_cv` (validity), `*_observation`, and `*_bda` (verdict comparison).
+Observation covers all fixed requirements, even when acquisition found no named
+targets. Empty validity/verdict batches are skipped. The boundary uses one call
+per trajectory. Semantic acceptance uses `*_acceptance` once per version/evidence
+group, shared by RSR and CPR. Reference association, extraction and acceptance
+planning retain their existing stages; GUI execution can require additional action
+calls. `model_calls.json` records actual requests, cache hits, retries and usage,
+so these counts are measured rather than inferred from episode counts.
 
 An available API alone is insufficient for archived data with missing images
 or runnable versions. Preflight identifies these gaps before check scoring.
@@ -183,14 +188,14 @@ With this binding, the runner executes:
 2. Construct real before/after transitions from original edit IDs and exported versions.
 3. Use the existing `plan_review` client to bind those targets to acceptance criteria
    and executable workflows. The task catalogue is immutable in this call.
-4. Run the existing RS/CP acceptance executor and validate its recorded evidence.
+4. Run shared version acceptance for RSR/CPR and validate its recorded evidence.
 5. Join check, repair and recheck records; compute and export all six metrics.
 
 Repair-only criteria may be added when a discovered defect has no equivalent fixed
 criterion. They must be used by an actual repair group and never enlarge VC or CP's
 fixed denominator. Each current target receives an alias decision; `[]` explicitly
 means this edit group does not address it. This adds no RS sample, and cannot be
-mistaken for an unassessed fix in VCS. Unknown, duplicated or omitted IDs are errors.
+mistaken for an unassessed attempted repair. Unknown, duplicated or omitted IDs are errors.
 
 Some recorded repair groups contain other edits between their endpoints. These
 remain separate in `context_edit_event_ids`, not in `repair_event_ids`. The complete

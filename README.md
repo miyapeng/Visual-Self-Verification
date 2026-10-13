@@ -2,7 +2,9 @@
 
 Research code for evaluating how coding agents inspect their own outputs,
 judge the evidence, make repairs and check the result. The shared evaluator
-reports VC, CV, BDA, RS, CP and VCS with source evidence and model-call records.
+reports VTR, VC, EDR, CAR, RSR and CPR with source evidence and model-call records.
+See [the evaluation specification](docs/self_verification_evaluation.md) for the
+current definitions and independent evidence workflow.
 
 Start with the [evaluation guide](docs/VSV_SYSTEM.md),
 [benchmark adapters](docs/VSV_BENCHMARKS.md) and

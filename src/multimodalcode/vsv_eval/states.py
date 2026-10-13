@@ -1,4 +1,4 @@
-"""Independent repair and preservation judgments on audited versions."""
+"""Shared acceptance judgments on audited versions."""
 from __future__ import annotations
 
 import hashlib
@@ -9,41 +9,29 @@ from pathlib import Path
 from multimodalcode.io import read_json, write_json
 from .catalogue import content_hash, criteria_hash, image_views, load_catalogue, validate_catalogue, model_review_response, REQUIREMENT_POLICY, validate_prepared_repair_bindings
 from .evaluation import load_rounds
+from .metrics import PROTOCOL_VERSION
 from .judge import build_client, load_judge_config, rows_schema
 from .repair_pilot import prepare_versions, digest_tree, extract_run_code, assess_output
 from .replay import replay_version
 from .acceptance import GUI_SCHEMA, validate_workflows, validate_execution
 
 
-STATE_PROMPT = REQUIREMENT_POLICY + """Evaluate every supplied fixed check against its acceptance criterion for THIS artifact version.
-Use only actual execution evidence and attached images. Agent claims, patches, and later versions are not supplied and are not proof.
-Do not infer interactions from static images or select the denominator by likely patch impact.
-For CP, tolerate minor wording, spacing and decorative differences that preserve the required
-meaning, visible content and functionality. This does not excuse missing content, unreadable
-controls, broken actions, or a materially different result. For source conflicts marked by
-acceptance_policy, either supported presentation is acceptable when the substantive requirement
-is satisfied. Do not require verbatim wording unless exact text is essential to that requirement.
-Completed navigation actions with recorded destination URLs are execution evidence, even if
-only the final page screenshot is attached. Assess the recorded action sequence and destinations;
-do not mark a completed route transition unknown solely for lacking an intermediate screenshot.
-Check the specified element itself at readable scale in the attached detail views. Surrounding
-headings, text, or a present section do not establish that its required image/content is correct.
-If a criterion excludes an unintended blank block, a visible solid empty rectangle at the target
-location is a violation even when adjacent text is readable. Do not silently substitute the
-neighboring content for the target. Content that is almost indistinguishable from its
-background does not satisfy a criterion requiring visible, recognizable content. Identify
-the required element, not another logo or caption nearby. Use unknown if the relevant
-detail cannot be identified in the supplied evidence.
-Use unknown for missing observations, absent required interactions, unreadable pixels, or tool/runtime failures.
-Reference images are desired appearance; evaluator_observation images are actual state. Respect image identity and reset conditions.
-Workflow observations are independent acceptance evidence, not observations received by the original coding agent.
-An assigned node provides the current result for its check_ids. Earlier nodes in the SAME workflow may supply
-baseline/context evidence, but pass/fail must cite the assigned node. Do not borrow unrelated workflows or later nodes.
-Blocked actions and evaluator faults are unknown, not proof of a defect.
-A request marked evaluation_network_deadline is evaluator-limited network evidence; by itself
-it cannot prove an implementation-caused loading failure. Preserve this distinction.
-Preserve applicable rule_facts exactly. Return only {"checks":[{"check_id":"...","state":"pass|fail|unknown","evidence_ids":["execution ID"]}]}.
-Return all supplied check IDs exactly once. Do not assign scores or inspect repair plausibility.
+STATE_PROMPT = REQUIREMENT_POLICY + """Apply every supplied acceptance criterion to THIS artifact version.
+Use recorded execution feedback and attached evaluator observations. Agent claims, code edits,
+and other versions are not proof. Apply the same task-grounded tolerances before and after editing.
+Accept minor presentation variants only when they preserve the specified meaning and functionality;
+missing content, unreadable controls and broken interactions remain failures. Exact wording is
+required when the frozen criterion explicitly requires it.
+Static images cannot prove unexecuted behavior. Recorded actions, destinations and assertions
+can establish interactions without a screenshot at every step. Check the specified object at
+readable scale rather than substituting a nearby component. Reference images define requirements.
+Cite the result node assigned to each requirement. Preceding nodes in the same workflow may supply
+context; unrelated workflows and later nodes cannot. Preserve rule_facts exactly.
+Use pass or fail when observations decide the criterion. Use unknown for genuinely insufficient
+observations or evaluator/runtime faults. Blocked tool actions and evaluation_network_deadline
+alone do not prove an application defect. They require completing the acceptance evidence.
+Return all supplied IDs once, without repair plausibility, metric-specific labels, or scores.
+Return only {"checks":[{"check_id":"...","state":"pass|fail|unknown","evidence_ids":["execution ID"]}]}.
 EVIDENCE:
 """
 STATE_SCHEMA = rows_schema('checks', {'check_id':{'type':'string'}, 'state':{'type':'string','enum':['pass','fail','unknown']},
@@ -70,48 +58,23 @@ def state_evidence_scope(packet, check_id):
     return core, allowed
 
 
-def state_metric_packet(packet, spec, catalogue, version, metric, *, check_ids=None):
-    if metric == 'RS':
-        ids = {cid for t in spec['transitions'] if version in (t['before'], t['after']) for cid in t['target_ids']}
-    else:
-        ids = {c['check_id'] for c in catalogue['checks']}
+def acceptance_packet(packet, *, check_ids=None):
+    """Select evidence once; acceptance never depends on its eventual metric role."""
+    ids = {c['check_id'] for c in packet['checks']}
     if check_ids is not None:
-        if not set(check_ids) <= ids:
-            raise ValueError('State input includes a target outside its metric')
-        ids &= set(check_ids)
+        if len(check_ids) != len(set(check_ids)) or not set(check_ids) <= ids:
+            raise ValueError('Acceptance input includes duplicate or unknown checks')
+        ids = set(check_ids)
     checks = [c for c in packet['checks'] if c['check_id'] in ids]
-    ambiguous = ids & set(catalogue.get('unresolved_check_ids', [])) if metric == 'CP' else set()
-    assignments = {}
-    if ambiguous:
-        by_id = {c['check_id']: c for c in packet['checks']}
-        for cid in sorted(ambiguous):
-            references = set(by_id[cid]['reference_ids'])
-            # An omitted ambiguous visual check may still have a recorded capture
-            # of its reference page. The judge must verify the actual region.
-            assignments[cid] = [e['evidence_id'] for e in packet['evidence']
-                                if e.get('run_status') == 'completed' and e.get('observation', {}).get('screenshot')
-                                and any(references.intersection(by_id.get(other, {}).get('reference_ids', []))
-                                        for other in e.get('check_ids', []))]
-        packet = {**packet, 'acceptance_policy': 'allow_minor_source_variants',
-                  'evidence_assignments': assignments}
     allowed = set().union(*(state_evidence_scope(packet, cid)[1] for cid in ids))
     evidence = [e for e in packet['evidence'] if e['evidence_id'] in allowed]
-    evidence_ids = {e['evidence_id'] for e in evidence}
     references = {rid for c in checks for rid in c['reference_ids']}
     views = [v for v in packet['image_order']
              if (v['role'] == 'reference' and v['reference_id'] in references)
-             or (v['role'] == 'evaluator_observation' and v['evidence_id'] in evidence_ids)]
-    return {**packet, 'metric': metric, 'checks': checks, 'evidence': evidence,
+             or (v['role'] == 'evaluator_observation' and v['evidence_id'] in allowed)]
+    return {**packet, 'checks': checks, 'evidence': evidence,
             'image_order': [{**v, 'attachment_index': i + 1} for i, v in enumerate(views)],
-            'rule_facts': [f for f in packet['rule_facts'] if f['check_id'] in ids
-                           and not (f['check_id'] in ambiguous and f['state'] == 'unknown' and not f['evidence_ids'])]}
-
-
-def merge_state_metrics(packet, records):
-    """Keep the RS and CP label sets separate; the flat view preserves old readers."""
-    labels = {r['check_id']: r for metric in ('CP', 'RS') for r in records[metric]}
-    return [labels.get(c['check_id'], {'check_id': c['check_id'], 'state': 'unknown', 'evidence_ids': []})
-            for c in packet['checks']]
+            'rule_facts': [f for f in packet['rule_facts'] if f['check_id'] in ids]}
 
 
 def artifact_identity(version, runtime):
@@ -259,7 +222,7 @@ def validate_states(value, packet):
         if row['check_id'] not in allowed or row['check_id'] in seen or row['state'] not in {'pass','fail','unknown'}:
             raise ValueError('Invalid or duplicate state check')
         ids = row['evidence_ids']
-        if not isinstance(ids, list) or any(not isinstance(eid, str) or eid not in evidence for eid in ids):
+        if not isinstance(ids, list) or any(not isinstance(eid, str) or eid not in evidence for eid in ids) or len(ids) != len(set(ids)):
             raise ValueError('Unknown execution evidence ID')
         if row['state'] != 'unknown' and not ids:
             raise ValueError('Decidable state needs actual execution evidence')
@@ -331,6 +294,9 @@ def evaluate_states(rounds_path, catalogue_path, spec_path, config_path, output,
         state_catalogue['review'] = spec.get('review', {'status': 'draft'})
         validate_catalogue(state_catalogue, allow_draft=allow_draft)
     output.mkdir(parents=True, exist_ok=True)
+    previous = output / 'repair_results.json'
+    if previous.is_file() and read_json(previous).get('protocol_version') != PROTOCOL_VERSION:
+        raise ValueError('Acceptance output uses an older protocol; use a new output directory')
     frozen = output / 'spec.json'
     if frozen.exists() and read_json(frozen) != spec:
         raise ValueError('State specification changed; choose a fresh output directory')
@@ -415,56 +381,44 @@ def evaluate_states(rounds_path, catalogue_path, spec_path, config_path, output,
         list(pool.map(replay_one, enumerate(versions.items())))
 
     def assess(name):
-        print('state judge', name, flush=True)
+        print('acceptance judge', name, flush=True)
         packet, images = packets[name]
-        labels, requests, statuses = {}, [], []
-        for metric in ('RS', 'CP'):
-            supplied = state_metric_packet(packet, spec, catalogue, name, metric)
-            exact = {f['check_id']: f for f in supplied['rule_facts']}
-            pending = [c for c in supplied['checks'] if c['check_id'] not in exact]
-            rows, status = list(exact.values()), 'exact'
-            for group_index, group in enumerate(state_check_groups(packet, pending)):
-                supplied = state_metric_packet(packet, spec, catalogue, name, metric, check_ids=group)
-                images = [v['path'] for v in supplied['image_order']]
-                input_path = output / 'inputs' / f'{name}-{metric}-{group_index}.json'
-                write_json(input_path, supplied)
-                stage = ('visual' if images else 'text') + '_' + metric.lower()
-                record = None
-                cache_root = output / 'judge_cache' / stage
-                if not offline or cache_root.is_dir():
-                    schema = rows_schema('checks', {**STATE_SCHEMA['properties']['checks']['items']['properties'],
-                                         'check_id': {'type': 'string', 'enum': group}})
-                    judge = build_client(model_config, primary_profile or model_config['primary_stage_profiles'][stage],
-                                         cache_root, response_schema=schema)
-                    required_nodes = {c['check_id']: sorted(state_evidence_scope(supplied, c['check_id'])[0])
-                                      for c in supplied['checks']}
-                    prompt = (f'Judge {metric} states only; no other metric judgments are supplied.\n'
-                              + 'A pass/fail row MUST cite at least one assigned result-node ID from this map; '
-                              + 'a preceding node alone is insufficient: ' + json.dumps(required_nodes) + '\n'
-                              + STATE_PROMPT + json.dumps(supplied, ensure_ascii=False))
-                    cache = cache_root / (judge._key(stage, prompt, images)+'.json')
-                    record = read_json(cache) if offline and cache.is_file() else None if offline else judge.judge(
-                        stage, prompt, images, context={'version': name, 'input_path': str(input_path),
-                                                       'check_ids': group})
-                if record:
-                    if record.get('error'):
-                        raise ValueError(record['error'])
-                    rows += validate_states(record['parsed'], supplied)
-                    if status != 'unassessed':
-                        status = 'evaluated'
-                    requests.append({'metric': metric, 'stage': stage, 'input_path': str(input_path),
-                                     'request_sha256': record['request_sha256'],
-                                     'response_path': str(cache_root / (record['request_sha256']+'.json'))})
-                else:
-                    status = 'unassessed'
-                    rows += [{'check_id':cid,'state':'unknown','evidence_ids':[]} for cid in group]
-            labels[metric] = rows
-            statuses.append(status)
-        status = 'unassessed' if 'unassessed' in statuses else 'evaluated' if requests else 'exact'
-        write_json(output / 'state_results' / f'{name}.json', {'artifact_sha256': identities[name],
-                   'checks': merge_state_metrics(packet, labels), 'metric_results': labels,
-                   'requests': requests, 'status': status})
-        return name, labels
+        exact = {f['check_id']: f for f in packet['rule_facts']}
+        pending = [c for c in packet['checks'] if c['check_id'] not in exact]
+        rows, requests, status = list(exact.values()), [], 'exact'
+        for group_index, group in enumerate(state_check_groups(packet, pending)):
+            supplied = acceptance_packet(packet, check_ids=group)
+            images = [v['path'] for v in supplied['image_order']]
+            input_path = output / 'inputs' / f'{name}-acceptance-{group_index}.json'
+            write_json(input_path, supplied)
+            stage = ('visual' if images else 'text') + '_acceptance'
+            record = None
+            cache_root = output / 'judge_cache' / stage
+            if not offline or cache_root.is_dir():
+                schema = rows_schema('checks', {**STATE_SCHEMA['properties']['checks']['items']['properties'],
+                                     'check_id': {'type': 'string', 'enum': group}})
+                judge = build_client(model_config, primary_profile or model_config['primary_stage_profiles'][stage],
+                                     cache_root, response_schema=schema)
+                prompt = STATE_PROMPT + json.dumps(supplied, ensure_ascii=False)
+                cache = cache_root / (judge._key(stage, prompt, images)+'.json')
+                record = read_json(cache) if offline and cache.is_file() else None if offline else judge.judge(
+                    stage, prompt, images, context={'version': name, 'input_path': str(input_path), 'check_ids': group})
+            if record:
+                if record.get('error'):
+                    raise ValueError(record['error'])
+                rows += validate_states(record['parsed'], supplied)
+                if status != 'unassessed':
+                    status = 'evaluated'
+                requests.append({'stage': stage, 'input_path': str(input_path),
+                                 'request_sha256': record['request_sha256'],
+                                 'response_path': str(cache_root / (record['request_sha256']+'.json'))})
+            else:
+                status = 'unassessed'
+                rows += [{'check_id': cid, 'state': 'unknown', 'evidence_ids': []} for cid in group]
+        write_json(output / 'state_results' / f'{name}.json', {
+            'protocol_version': PROTOCOL_VERSION, 'artifact_sha256': identities[name],
+            'checks': rows, 'requests': requests, 'status': status})
+        return name, rows
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         records.update(pool.map(assess, versions))
@@ -472,19 +426,16 @@ def evaluate_states(rounds_path, catalogue_path, spec_path, config_path, output,
     episodes = {ep['episode_id']: ep for ep in rounds['episodes']}
     for transition in spec['transitions']:
         validate_transition(transition, versions, events, episodes, goals)
-        def paired(metric):
-            left, right = [{r['check_id']: r for r in records[v][metric]} for v in (transition['before'],transition['after'])]
-            ids = transition['target_ids'] if metric == 'RS' else [c['check_id'] for c in catalogue['checks']]
-            return [{'check_id': goal, 'before': left[goal]['state'], 'after': right[goal]['state'],
-                     'before_evidence_ids': left[goal]['evidence_ids'], 'after_evidence_ids': right[goal]['evidence_ids']}
-                    for goal in sorted(ids)]
-        repairs.append({**transition, 'states': paired('RS'), 'preservation_states': paired('CP')})
-    result = {'schema': 'self-verification-repair-results-1', 'source_run_sha256': rounds['source_run_sha256'],
-              'mode': 'offline' if offline else 'online',
-              'status': 'partial' if any(read_json(output/'state_results'/f'{v}.json')['status']=='unassessed' for v in records)
-                         or (workflows is not None and any(r['state']=='unknown' for labels in records.values()
-                                                          for rows in labels.values() for r in rows)) else 'evaluated',
-              'judgment_method': 'independent_metric_calls',
+        left, right = [{r['check_id']: r for r in records[v]} for v in (transition['before'], transition['after'])]
+        ids = set(transition['target_ids']) | {c['check_id'] for c in catalogue['checks']}
+        states = [{'check_id': cid, 'before': left[cid]['state'], 'after': right[cid]['state'],
+                   'before_evidence_ids': left[cid]['evidence_ids'], 'after_evidence_ids': right[cid]['evidence_ids']}
+                  for cid in sorted(ids)]
+        repairs.append({**transition, 'states': states})
+    result = {'schema': 'self-verification-repair-results-2', 'source_run_sha256': rounds['source_run_sha256'],
+              'protocol_version': PROTOCOL_VERSION, 'mode': 'offline' if offline else 'online',
+              'status': 'incomplete' if any(r['state'] == 'unknown' for rows in records.values() for r in rows) else 'evaluated',
+              'judgment_method': 'shared_acceptance',
               'criteria_sha256': catalogue['criteria_sha256'], 'spec': str(frozen), 'spec_sha256': content_hash(spec),
               'manifest': str(manifest_path), 'artifact_identities': identities, 'replays': execution_paths,
               'execution_sha256': {v: hashlib.sha256(Path(p).read_bytes()).hexdigest() for v,p in execution_paths.items()},
@@ -500,7 +451,7 @@ def load_repair_results(path, rounds_path, catalogue_path):
     value = read_json(path)
     rounds = load_rounds(rounds_path)
     catalogue = load_catalogue(catalogue_path, allow_draft=True)
-    if value.get('schema') != 'self-verification-repair-results-1' or value['source_run_sha256'] != rounds['source_run_sha256'] or value['criteria_sha256'] != catalogue['criteria_sha256']:
+    if value.get('schema') != 'self-verification-repair-results-2' or value.get('protocol_version') != PROTOCOL_VERSION or value['source_run_sha256'] != rounds['source_run_sha256'] or value['criteria_sha256'] != catalogue['criteria_sha256']:
         raise ValueError('Repair results refer to different source data or criteria')
     spec = read_json(value['spec'])
     if content_hash(spec) != value['spec_sha256']:
@@ -533,75 +484,42 @@ def load_repair_results(path, rounds_path, catalogue_path):
                 raise ValueError('State image evidence changed')
         row = read_json(value['state_results'][name])
         exact = {f['check_id']: f for f in packet['rule_facts']}
-        if 'metric_results' in row:
-            if set(row['metric_results']) != {'RS', 'CP'} or any(r['metric'] not in {'RS', 'CP'} for r in row['requests']):
-                raise ValueError('Invalid independent state metric records')
-            metric_labels = {}
-            for metric in ('RS', 'CP'):
-                supplied = state_metric_packet(packet, spec, catalogue, name, metric)
-                exact = {f['check_id']: f for f in supplied['rule_facts']}
-                matching = [r for r in row['requests'] if r['metric'] == metric]
-                pending = {c['check_id'] for c in supplied['checks'] if c['check_id'] not in exact}
-                seen = set()
-                metric_labels[metric] = list(exact.values())
-                for request in matching:
-                    recorded_input = read_json(request['input_path'])
-                    selected = [c['check_id'] for c in recorded_input['checks']]
-                    if len(selected) != len(set(selected)) or set(selected) & seen or not set(selected) <= pending:
-                        raise ValueError('State metric requests duplicate or invent check IDs')
-                    expected = state_metric_packet(packet, spec, catalogue, name, metric, check_ids=selected)
-                    # Validate archived calls that also carried evidence for exact goals.
-                    if recorded_input == {**supplied, 'checks': [c for c in supplied['checks'] if c['check_id'] in selected]}:
-                        expected = recorded_input
-                    record = read_json(request['response_path'])
-                    if (recorded_input != expected or record.get('error')
-                            or record['request_sha256'] != request['request_sha256']
-                            or record.get('stage') != request['stage'] or not request['stage'].endswith('_' + metric.lower())
-                            or not record['prompt'].endswith(json.dumps(expected, ensure_ascii=False))):
-                        raise ValueError('State metric input differs from its original judge request')
-                    metric_labels[metric] += validate_states(record['parsed'], expected)
-                    seen.update(selected)
-                if pending - seen and row['status'] != 'unassessed':
-                    raise ValueError('State metric requests omitted check IDs')
-                metric_labels[metric] += [{'check_id': c['check_id'], 'state': 'unknown', 'evidence_ids': []}
-                                         for c in supplied['checks'] if c['check_id'] in pending - seen]
-            if row['metric_results'] != metric_labels:
-                raise ValueError('State labels differ from original judge responses')
-            labels = merge_state_metrics(packet, metric_labels)
-        elif row['request']:
-            request = row['request']
-            supplied = read_json(request['input_path'])
-            expected = {**packet, 'checks': [c for c in packet['checks'] if c['check_id'] not in exact]}
+        if row.get('protocol_version') != PROTOCOL_VERSION:
+            raise ValueError('Acceptance labels use an older protocol')
+        pending = {c['check_id'] for c in packet['checks']} - set(exact)
+        labels, seen = list(exact.values()), set()
+        for request in row['requests']:
+            recorded_input = read_json(request['input_path'])
+            selected = [c['check_id'] for c in recorded_input['checks']]
+            if len(selected) != len(set(selected)) or set(selected) & seen or not set(selected) <= pending:
+                raise ValueError('Acceptance requests duplicate or invent check IDs')
+            expected = acceptance_packet(packet, check_ids=selected)
             record = read_json(request['response_path'])
-            if (supplied != expected or record.get('error') or record['request_sha256'] != request['request_sha256']
-                    or not record['prompt'].endswith(json.dumps(supplied,ensure_ascii=False))):
-                raise ValueError('State input differs from its original judge request')
-            labels = list(exact.values()) + validate_states(record['parsed'], supplied)
-        else:
-            labels = [exact.get(c['check_id'], {'check_id':c['check_id'],'state':'unknown','evidence_ids':[]}) for c in packet['checks']]
+            stage = ('visual' if expected['image_order'] else 'text') + '_acceptance'
+            if (recorded_input != expected or record.get('error') or request['stage'] != stage
+                    or record.get('stage') != stage or record['request_sha256'] != request['request_sha256']
+                    or record['prompt'] != STATE_PROMPT + json.dumps(expected, ensure_ascii=False)):
+                raise ValueError('Acceptance input differs from its original judge request')
+            labels += validate_states(record['parsed'], expected)
+            seen.update(selected)
+        if pending - seen and row['status'] != 'unassessed':
+            raise ValueError('Acceptance requests omitted fixed checks')
+        labels += [{'check_id': c['check_id'], 'state': 'unknown', 'evidence_ids': []}
+                   for c in packet['checks'] if c['check_id'] in pending - seen]
         if row['checks'] != labels:
             raise ValueError('State labels differ from exact assertions or original judge responses')
     for repair, transition in zip(value['repairs'], spec['transitions']):
         if any(repair.get(key) != expected for key,expected in transition.items()):
             raise ValueError('Repair relation differs from its executed transition')
         version_rows = [read_json(value['state_results'][v]) for v in (repair['before'],repair['after'])]
-        separated = 'metric_results' in version_rows[0]
-        if separated and 'preservation_states' not in repair:
-            raise ValueError('Independent repair evaluation omitted preservation labels')
-        for field, metric in [('states', 'RS'), ('preservation_states', 'CP')]:
-            if field not in repair:
-                continue
-            states = [{r['check_id']: r for r in v.get('metric_results', {}).get(metric, v['checks'])} for v in version_rows]
-            if field == 'preservation_states':
-                expected_ids = {c['check_id'] for c in catalogue['checks']}
-            else:
-                expected_ids = set(transition['target_ids']) if separated else set(states[0])
-            if {r['check_id'] for r in repair[field]} != expected_ids or len(repair[field]) != len(expected_ids):
-                raise ValueError('Repair labels omitted or duplicated metric targets')
-            for row in repair[field]:
-                left, right = states[0][row['check_id']], states[1][row['check_id']]
-                if (row['before'] != left['state'] or row['after'] != right['state']
-                        or row.get('before_evidence_ids') != left['evidence_ids']
-                        or row.get('after_evidence_ids') != right['evidence_ids']):
-                    raise ValueError('Repair label differs from independent version state')
+        states = [{r['check_id']: r for r in v['checks']} for v in version_rows]
+        expected_ids = {c['check_id'] for c in catalogue['checks']} | set(transition['target_ids'])
+        if {r['check_id'] for r in repair['states']} != expected_ids or len(repair['states']) != len(expected_ids):
+            raise ValueError('Repair labels omitted or duplicated acceptance targets')
+        for row in repair['states']:
+            left, right = states[0][row['check_id']], states[1][row['check_id']]
+            if (row['before'] != left['state'] or row['after'] != right['state']
+                    or row.get('before_evidence_ids') != left['evidence_ids']
+                    or row.get('after_evidence_ids') != right['evidence_ids']):
+                raise ValueError('Repair label differs from shared version acceptance')
     return value['repairs']

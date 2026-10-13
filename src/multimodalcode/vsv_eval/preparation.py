@@ -94,6 +94,8 @@ def prepare_case_acceptance(rounds_path, catalogue_path, checks_path, binding_pa
     rounds = load_rounds(rounds_path)
     catalogue = load_catalogue(catalogue_path, allow_draft=True)
     checks = read_json(checks_path)
+    from .scope import scoped_rounds
+    rounds = scoped_rounds(rounds, checks['scope'])
     if (checks['source_run_sha256'] != rounds['source_run_sha256']
             or checks['criteria_sha256'] != catalogue['criteria_sha256']
             or [e['episode_id'] for e in checks['episodes']] != [e['episode_id'] for e in rounds['episodes']]
@@ -109,7 +111,7 @@ def prepare_case_acceptance(rounds_path, catalogue_path, checks_path, binding_pa
     for group in repair_groups(rounds):
         targets.append({**group, 'edits': [events[i] for i in group['repair_event_ids']],
                         'context_edits': [events[i] for i in by_edits[tuple(group['repair_event_ids'])].get('context_edit_event_ids', [])],
-                        'targets': [t for eid in group['episode_ids'] for t in by_id[eid]['targets']]})
+                        'targets': [t for eid in group['episode_ids'] for t in {t['target_id']: t for t in by_id[eid]['targets'] + by_id[eid]['assessments']}.values()]})
     seed = {'fixture': binding['fixture'], 'runtime': binding['runtime'],
             'version_source': {'kind': 'manifest', 'path': binding['version_manifest']},
             'version_ids': sorted({t[k] for t in transitions for k in ('before', 'after')}),

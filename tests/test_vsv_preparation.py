@@ -20,6 +20,7 @@ def fixture(tmp):
     task = tmp/'task'; task.mkdir()
     (task/'prompt.txt').write_text('The item must be visible and the service must remain available.')
     events = [
+        {'ordinal':-1,'kind':'observation','text':'Initial implementation written.'},
         {'ordinal':0,'kind':'action','tool':'Bash','tool_call_id':'before','payload':{'command':'check'}},
         {'ordinal':1,'kind':'observation','payload':{'tool_use_id':'before'},'text':'Item missing. Service available.'},
         {'ordinal':2,'kind':'model_text','text':'The item is missing; the service works.'},
@@ -137,7 +138,9 @@ def test_full_runner_prepares_targets_executes_acceptance_and_emits_six_scores(t
         cache=Path(cache)
         def judge(stage,prompt,images,**kwargs):
             calls.append(stage)
-            if stage=='plan_review':
+            if stage=='implementation_boundary':
+                value={'initial_implementation_event_id':-1}
+            elif stage=='plan_review':
                 packet=json.loads(prompt.split('MATERIALS:\n',1)[1])
                 assert packet['checks']==cat['checks']
                 value={'checks':cat['checks'],'repair_checks':[],'unresolved_check_ids':[],
@@ -159,7 +162,7 @@ def test_full_runner_prepares_targets_executes_acceptance_and_emits_six_scores(t
                 elif stage.endswith('_observation'):
                     value={'targets':[{'target_id':c,'actual_state':'fail' if before and c=='a' else 'pass',
                                        'actual_issue':{'object':'item','symptom':'missing'} if before and c=='a' else None,
-                                       'evidence_ids':[obs]} for c in ['a','b']], 'additional_defects':[]}
+                                       'evidence_ids':[obs]} for c in ['a','b']]}
                 elif stage.endswith('_bda'):
                     value={'targets':[{'target_id':c,'agent_state':'fail' if before and c=='a' else 'pass',
                                        'issue_match':True if before and c=='a' else None,'diagnosis_ids':[diag]} for c in ['a','b']]}
@@ -189,7 +192,7 @@ def test_full_runner_prepares_targets_executes_acceptance_and_emits_six_scores(t
     result=read_json(tmp_path/'out/summary.json')['cases'][0]
     assert result['status']=='completed'
     assert all(result['metrics'][m]['score']==100 for m in system.METRICS)
-    assert calls.count('plan_review')==1 and calls.count('recheck_alignment')==1
+    assert calls.count('plan_review')==1 and calls.count('recheck_alignment')==0
     spec=read_json(tmp_path/'out/case/acceptance/plan/state_spec.json')
     assert spec['transitions'][0]['target_aliases']=={'a':['a'],'b':[]}
     count=len(calls)
@@ -223,8 +226,8 @@ def test_explicit_unaddressed_target_is_not_an_unassessed_repair():
                                    {'check_id':'b','before':'fail','after':'fail'}]}
     result=summarize(catalogue('a','b'),[episode(target('a',actual='fail'),target('b',actual='fail'),
                                              repair_event_ids=[4])],[repair])
-    assert result['RS']['score']==100 and result['RS']['denominator']==1
-    assert result['VCS']['failure_count']==1 and result['VCS']['unknown_count']==0
+    assert result['RSR']['score']==100 and result['RSR']['denominator']==1
+    assert result['RSR']['denominator']==1 and result['RSR']['unassessed_count']==0
 
 
 def test_published_replay_checkpoints_feed_the_existing_manifest_loader(tmp_path,monkeypatch):

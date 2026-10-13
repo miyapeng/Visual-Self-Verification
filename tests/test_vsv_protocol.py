@@ -9,7 +9,7 @@ import pytest
 
 from multimodalcode.vsv_eval.catalogue import (content_hash, criteria_hash, validate_catalogue,
                                              prepare_evaluation_plan, load_catalogue)
-from multimodalcode.vsv_eval.evaluation import build_packet, validate_targets, load_rounds, validate_saved_episode, unassessed_repairs, trailing_responses, round_cutoffs
+from multimodalcode.vsv_eval.evaluation import build_packet, load_rounds, validate_saved_episode, unassessed_repairs, trailing_responses, round_cutoffs
 from multimodalcode.vsv_eval.judge import JudgeClient, JudgeProfile
 from multimodalcode.vsv_eval.metrics import summarize, macro_average
 from multimodalcode.vsv_eval.states import (validate_states, state_packet, artifact_identity, validate_transition,
@@ -52,102 +52,71 @@ def target(cid, actual='pass', agent=None, **kwargs):
 
 
 def episode(*targets, eid='e', **kwargs):
-    return {'episode_id': eid, 'targets': list(targets), 'status': 'evaluated',
+    return {'episode_id': eid, 'targets': list(targets), 'assessments': [t for t in targets if t['actual_state'] != 'unknown'], 'status': 'evaluated',
             'relation_annotation_complete': True, 'repair_event_ids': [], **kwargs}
 
 
-def test_coverage_is_fixed_deduplicated_and_unknown_has_bounds():
+def test_coverage_counts_only_full_valid_checks_once():
     result = summarize(catalogue('a','b','c'), [episode(target('a'), target('b',coverage='partial')),
-                                                episode(target('a'),target('c',actual='unknown',coverage='unknown'),eid='later')])
-    assert result['VC']['score'] is None
-    assert result['VC']['lower_bound'] == pytest.approx(100/3)
-    assert result['VC']['upper_bound'] == pytest.approx(200/3)
+                      episode(target('a'), target('c',method_ok=False), eid='later')])
+    assert result['VC']['score'] == pytest.approx(100/3)
     assert result['VC']['partial_count'] == 1
-    assert result['VC']['unknown_count'] == 1
+    assert result['VC']['denominator'] == 3
+    incomplete = summarize(catalogue('a'), [episode(target('a', coverage='unknown'))])
+    assert incomplete['VC']['score'] is None and incomplete['VC']['unassessed_count'] == 1
 
 
-def test_absent_diagnosis_is_penalized_but_evaluator_uncertainty_remains_unknown():
-    result = summarize(catalogue('a','b','c'), [episode(target('a',agent='absent'),
-                         target('b',actual='fail',agent='fail',issue_match=None),
-                         target('c',actual='unknown',agent='pass',coverage='unknown'))])
-    assert result['BDA']['normal']['failure_count'] == 1
-    assert result['BDA']['absent_count'] == 1
-    assert result['BDA']['unknown_count'] == 2
-    assert result['BDA']['score'] is None
-    assert result['VCS']['failure_count'] == 1  # A known failure dominates unknowns.
+def test_absent_diagnosis_is_penalized_and_unassessed_comparison_blocks_publication():
+    result = summarize(catalogue('a','b'), [episode(target('a',agent='absent'),
+                       target('b',actual='fail',agent='fail',issue_match=None))])
+    assert result['CAR']['failure_count'] == result['CAR']['missing_judgment_count'] == 1
+    assert result['EDR']['score'] is None and result['EDR']['unassessed_count'] == 1
 
 
-def test_bda_penalizes_wrong_missing_and_uncertain_conclusions():
-    rows = [target('a', agent='pass'), target('b', agent='fail'),
-            target('c', actual='fail', agent='fail'), target('d', actual='fail', agent='pass'),
-            target('e', agent='absent'), target('f', actual='fail', agent='uncertain')]
+def test_edr_car_penalize_wrong_missing_and_inconclusive_judgments():
+    rows = [target('a'), target('b',agent='fail'), target('c',actual='fail'),
+            target('d',actual='fail',agent='pass'), target('e',agent='absent'),
+            target('f',actual='fail',agent='uncertain')]
     result = summarize(catalogue('a','b','c','d','e','f'), [episode(*rows)])
-    bda = result['BDA']
-    assert bda['score'] == pytest.approx(100/3)
-    assert bda['lower_bound'] == bda['upper_bound'] == pytest.approx(bda['score'])
-    assert bda['success_count'] == 2 and bda['failure_count'] == 4
-    assert bda['absent_count'] == bda['uncertain_count'] == 1
-    assert bda['unknown_count'] == 0
-    assert bda['definition'] == 'macro_diagnosis_accuracy_over_present_classes'
-    macro = macro_average([result])['BDA']
-    assert macro['score'] == pytest.approx(100/3) and macro['absent_count'] == macro['uncertain_count'] == 1
-    result['BDA'].pop('definition')
-    with pytest.raises(ValueError, match='different diagnosis definitions'):
-        macro_average([result])
+    assert result['EDR']['score'] == result['CAR']['score'] == pytest.approx(100/3)
+    assert result['CAR']['missing_judgment_count'] == result['EDR']['inconclusive_judgment_count'] == 1
+    assert macro_average([result])['EDR']['score'] == pytest.approx(100/3)
 
 
-def test_bda_unknown_state_bounds_match_possible_completions():
-    from itertools import product
-    base = [target('normal'), target('error', actual='fail')]
-    unresolved = [target(str(i), actual='unknown', agent=agent)
-                  for i, agent in enumerate(['pass', 'fail', 'absent', 'uncertain'])]
-    result = summarize(catalogue('normal','error'), [episode(*(base + unresolved))])
-    bda = result['BDA']
-    assert bda['score'] is None and bda['known_score'] == 100
-    assert bda['unknown_count'] == 4  # Unknown evidence is retained even when a diagnosis is absent.
-    possible = []
-    for states in product(['pass', 'fail'], repeat=4):
-        for matched in [False, True]:
-            rows = [dict(t, actual_state=state, issue_match=matched if t['agent_state']=='fail' else None)
-                    for t, state in zip(unresolved, states)]
-            possible.append(summarize(catalogue('normal','error'), [episode(*(base + rows))])['BDA']['score'])
-    assert bda['lower_bound'] == pytest.approx(min(possible))
-    assert bda['upper_bound'] == pytest.approx(max(possible))
-    # A known-subset score can exceed the full upper bound: silence never earns credit.
-    assert bda['upper_bound'] < bda['known_score']
-    assert macro_average([result])['BDA']['score'] is None
+def test_diagnosis_denominator_is_independent_of_agent_attempts():
+    e = episode(target('attempted'))
+    e['assessments'] = [target('missed', actual='fail', agent='absent'), target('satisfied', agent='absent')]
+    result = summarize(catalogue('attempted','missed','satisfied'), [e])
+    assert result['VC']['score'] == pytest.approx(100/3)
+    assert result['EDR']['denominator'] == result['CAR']['denominator'] == 1
+    assert result['EDR']['score'] == result['CAR']['score'] == 0
 
 
-def test_single_class_tasks_contribute_to_macro_bda():
-    normal = summarize(catalogue('a'),[episode(target('a'))])
-    error = summarize(catalogue('a'),[episode(target('a',actual='fail'))])
-    assert normal['BDA']['score'] == error['BDA']['score'] == 100
+def test_single_class_has_no_opportunity_for_the_other_class():
+    normal = summarize(catalogue('a'), [episode(target('a'))])
+    error = summarize(catalogue('a'), [episode(target('a',actual='fail'))])
+    assert normal['EDR']['status'] == error['CAR']['status'] == 'not_applicable'
     result = macro_average([normal,error])
-    assert result['BDA']['score'] == 100
-    assert result['BDA']['normal']['task_count'] == result['BDA']['error']['task_count'] == 1
+    assert result['EDR']['score'] == result['CAR']['score'] == 100
+    assert result['EDR']['task_count'] == result['CAR']['task_count'] == 1
 
 
-def test_diagnosis_groups_are_visual_and_text_and_partial_coverage_is_unchanged():
-    rows=[target('a',modality='visual'), target('b',modality='visual',actual='fail',coverage='partial'),
-          target('c',modality='text')]
-    result=summarize(catalogue('a','b','c'),[episode(*rows)])
-    assert 'BDA-M' not in result and 'BDA-M' not in macro_average([result])
-    assert result['BDA-V']['normal']['denominator']==result['BDA-V']['error']['denominator']==1
-    assert result['BDA-T']['normal']['denominator']==1
-    assert result['VC']['score']==pytest.approx(200/3) and result['VC']['partial_count']==1
-    historical=summarize(catalogue('a'),[episode(target('a',modality='mixed'))])
-    assert historical['BDA-V']['normal']['denominator']==1
+def test_diagnosis_modality_is_per_condition_not_per_round():
+    rows = [target('a',modality='visual'), target('b',modality='visual',actual='fail',coverage='partial'),
+            target('c',modality='text')]
+    result = summarize(catalogue('a','b','c'), [episode(*rows)])
+    assert result['CAR-V']['denominator'] == result['EDR-V']['denominator'] == result['CAR-T']['denominator'] == 1
+    assert result['EDR-T']['denominator'] == 0
+    assert result['VC']['score'] == pytest.approx(200/3)
 
 
-def test_repair_preservation_uses_all_fixed_goals_and_baseline_pass_is_not_rs():
+def test_repair_requires_failed_baseline_and_preservation_excludes_targets():
     repairs = [{'episode_ids':['e'], 'target_ids':['a','b'], 'states':[
-        {'check_id':'a','before':'fail','after':'pass'},
-        {'check_id':'b','before':'pass','after':'pass'},
+        {'check_id':'a','before':'fail','after':'pass'}, {'check_id':'b','before':'pass','after':'pass'},
         {'check_id':'c','before':'pass','after':'fail'}]}]
-    result = summarize(catalogue('a','b','c'),[episode(target('a',actual='fail'),repair_event_ids=[4])],repairs)
-    assert result['RS']['score'] == 100 and result['RS']['excluded_baseline_pass_count'] == 1
-    assert result['CP']['score'] == 50
-    assert result['VCS']['failure_count'] == 1
+    result = summarize(catalogue('a','b','c'), [], repairs)
+    assert result['RSR']['score'] == 100 and result['RSR']['excluded_baseline_pass_count'] == 1
+    assert result['CPR']['score'] == 0 and result['CPR']['denominator'] == 1
 
 
 def test_requirement_coverage_is_not_the_modality_of_the_check():
@@ -185,72 +154,64 @@ def test_repair_attempts_preserve_failures_and_join_local_success_with_regressio
         repairs.append({'before': f'V{i}', 'after': f'V{i+1}', 'repair_event_ids': [10+i],
                         'episode_ids': sources, 'target_ids': [goal], 'states': states})
     result = summarize(cat, episodes, repairs)
-    diagnosed = result['RS']['diagnosed_visual']
-    assert diagnosed['sample_count'] == 3  # Two source rounds do not duplicate the shared attempt.
-    assert diagnosed['score'] == pytest.approx(200 / 3)
-    outcomes = result['CP']['repair_outcomes']
+    assert result['RSR']['denominator'] == 3
+    assert result['RSR']['score'] == pytest.approx(200/3)
+    outcomes = result['CPR']
     assert [t['local_repair_success'] for t in outcomes['transitions']] == [True, False, True]
     assert outcomes['transitions'][0]['regressed_check_ids'] == ['desktop']
-    assert outcomes['joint_outcomes'] == {'local_success_preserved': 1, 'local_success_regressed': 1,
-                                        'local_failure_preserved': 1, 'local_failure_regressed': 0,
-                                        'unresolved': 0, 'not_applicable': 0}
-    assert outcomes['regression_rate']['score'] == pytest.approx(100 / 3)
-    assert result['CP']['score'] == pytest.approx(1400 / 15)  # Many preserved checks do not hide the transition.
-    macro = macro_average([result])
-    assert macro['RS']['diagnosed_visual']['score'] == diagnosed['score']
-    assert macro['CP']['repair_outcomes']['joint_outcomes'] == outcomes['joint_outcomes']
+    assert outcomes['joint_outcomes']['local_success_regressed'] == 1
+    assert outcomes['joint_outcomes']['local_failure_preserved'] == 1
+    assert result['CPR']['score'] == pytest.approx(1400/15)
+    assert macro_average([result])['RSR']['score'] == result['RSR']['score']
 
 
-def test_conditional_repair_requires_a_real_baseline_defect():
-    repairs = [{'episode_ids': ['e'], 'target_ids': ['a'],
-                'states': [{'check_id': 'a', 'before': 'unknown', 'after': 'pass'}]}]
-    result = summarize(catalogue('a'), [episode(target('a', actual='fail', modality='visual'))], repairs)
-    assert result['RS']['score'] == 100  # The existing post-repair acceptance policy is unchanged.
-    conditional = result['RS']['diagnosed_visual']
-    assert conditional['sample_count'] == 0 and conditional['unverified_baseline_count'] == 1
+def test_unknown_baseline_cannot_become_success_from_a_passing_after_state():
+    repairs = [{'episode_ids':[], 'target_ids':['a'],
+                'states':[{'check_id':'a','before':'unknown','after':'pass'}]}]
+    result = summarize(catalogue('a'), [], repairs)
+    assert result['RSR']['score'] is None and result['RSR']['unassessed_count'] == 1
+    assert result['RSR']['success_count'] == 0
 
 
-def test_post_repair_acceptance_does_not_require_a_decidable_baseline():
-    repairs = [{'episode_ids': [], 'target_ids': ['a', 'b', 'c'], 'states': [
-        {'check_id': 'a', 'before': 'unknown', 'after': 'pass'},
-        {'check_id': 'b', 'before': 'unknown', 'after': 'fail'},
-        {'check_id': 'c', 'before': 'fail', 'after': 'unknown'}]}]
-    rs = summarize(catalogue('a', 'b', 'c'), [], repairs)['RS']
-    assert rs['definition'] == 'post_repair_acceptance'
-    assert rs['score'] is None and rs['known_score'] == 50 and rs['success_count'] == rs['failure_count'] == rs['unknown_count'] == 1
+def test_repair_and_preservation_cannot_disagree_about_the_same_state():
+    repairs = [{'episode_ids':[], 'target_ids':['a'],
+                'states':[{'check_id':'a','before':'fail','after':'pass'}],
+                'preservation_states':[{'check_id':'a','before':'pass','after':'pass'}]}]
+    with pytest.raises(ValueError, match='disagree'):
+        summarize(catalogue('a'), [], repairs)
 
 
-def test_unexecuted_fixed_check_prevents_chain_success_despite_known_cp_pass():
-    repairs = [{'episode_ids':['e'], 'target_ids':['a'], 'states':[
-        {'check_id':'a','before':'fail','after':'pass'},
-        {'check_id':'b','before':'pass','after':'pass'}]}]
-    result = summarize(catalogue('a','b','c'),[episode(target('a',actual='fail'),repair_event_ids=[4])],repairs)
-    assert result['RS']['score'] == 100
-    assert result['CP']['unknown_count'] == 1
-    assert result['VCS']['unknown_count'] == 1
+def test_missing_preservation_evidence_blocks_only_its_estimate():
+    repairs = [{'episode_ids':[], 'target_ids':['a'], 'states':[
+        {'check_id':'a','before':'fail','after':'pass'}, {'check_id':'b','before':'pass','after':'pass'}]}]
+    result = summarize(catalogue('a','b','c'), [], repairs)
+    assert result['RSR']['score'] == 100
+    assert result['CPR']['score'] is None and result['CPR']['unassessed_count'] == 1
 
 
-def test_known_error_without_repair_fails_chain_unassessed_edit_is_unknown():
-    goal = target('a',actual='fail')
-    assert summarize(catalogue('a'),[episode(goal)])['VCS']['failure_count'] == 1
-    assert summarize(catalogue('a'),[episode(goal,repair_event_ids=[4])])['VCS']['unknown_count'] == 1
+def test_a_diagnosed_unattempted_repair_is_a_finding_not_a_repair_sample():
+    from multimodalcode.vsv_eval.metrics import findings
+    e = episode(target('a', actual='fail'))
+    result = summarize(catalogue('a'), [e])
+    assert result['RSR']['denominator'] == 0
+    assert findings([e])['diagnosed_without_repair'] == [{'episode_id':'e', 'target_id':'a'}]
 
 
-def test_unrecoverable_shared_repairs_remain_visible_without_guessing_target_counts():
+def test_unrecoverable_shared_repairs_are_one_evaluation_gap():
     rounds={'episodes':[{'episode_id':eid,'repair_links':[{'repair_event_ids':[4,6]}]} for eid in ['e','other']]}
     gaps=unassessed_repairs(rounds,[])
+    result=summarize(catalogue('a','b'),[],repair_gaps=gaps)
     assert len(gaps)==1 and gaps[0]['episode_ids']==['e','other']
-    result=summarize(catalogue('a','b'),[episode(target('a',actual='fail'),repair_event_ids=[4,6])],repair_gaps=gaps)
-    assert result['RS']['score'] is None and result['RS']['unassessed_episode_count']==2
-    assert result['CP']['unknown_count']==2 and result['CP']['unassessed_transition_count']==1
-    assert unassessed_repairs(rounds,[{'repair_event_ids':[4,6]}])==[]
+    assert result['RSR']['score'] is result['CPR']['score'] is None
+    assert result['RSR']['unassessed_count'] == result['CPR']['unassessed_count'] == 1
 
 
-def test_empty_trace_has_zero_coverage_and_na_conditional_scores():
-    result = summarize(catalogue('a'),[])
-    assert result['VC']['score'] == 0
-    assert all(result[key]['score'] is None for key in ['CV','BDA','RS','CP','VCS'])
-    assert summarize(catalogue(),[])['VC']['score'] is None
+def test_complete_implementation_without_check_has_zero_trigger_and_coverage():
+    result = summarize(catalogue('a'), [], scope={'initial_implementation_event_id':4})
+    assert result['VTR']['score'] == result['VC']['score'] == 0
+    assert all(result[key]['status'] == 'not_applicable' for key in ['EDR','CAR','RSR','CPR'])
+    absent = summarize(catalogue('a'), [], scope={'initial_implementation_event_id':None})
+    assert absent['VTR']['status'] == absent['VC']['status'] == 'not_applicable'
 
 
 def test_catalogue_requires_review_and_detects_changed_criteria():
@@ -293,19 +254,17 @@ def test_packet_cutoff_keeps_missing_image_capture_state_and_original_events(tmp
     assert rounds==original
 
 
-def test_target_validator_rejects_future_citations_and_visual_state_without_pixels(tmp_path):
+def test_observation_validator_rejects_future_citations_and_missing_pixels(tmp_path):
+    from multimodalcode.vsv_eval.check_stages import validate_observations
     rounds,ep=packet_fixture(tmp_path)
-    packet,_=build_packet(rounds,ep,3,'task',catalogue('a'),[],tmp_path)
-    row=target('a',actual='fail',agent='fail')
-    row.pop('target_id')
-    validate_targets({'targets':[row]},packet,catalogue('a'))
-    row['evidence_ids']=[5]
+    cat=catalogue('a'); packet,_=build_packet(rounds,ep,3,'task',cat,[],tmp_path)
+    row={'target_id':'a','actual_state':'pass','actual_issue':None,'evidence_ids':[999]}
     with pytest.raises(ValueError,match='future'):
-        validate_targets({'targets':[row]},packet,catalogue('a'))
+        validate_observations({'targets':[row]},packet,cat)
     row['evidence_ids']=[2]
-    row['modality']='visual'
+    packet['recorded_image_event_ids']=[2];packet['image_order']=[]
     with pytest.raises(ValueError,match='pixels'):
-        validate_targets({'targets':[row]},packet,catalogue('a'))
+        validate_observations({'targets':[row]},packet,cat)
 
 
 def test_state_validation_requires_complete_fixed_catalogue_and_real_execution():
@@ -317,14 +276,14 @@ def test_state_validation_requires_complete_fixed_catalogue_and_real_execution()
 
 
 def test_context_responses_and_tool_results_are_not_current_diagnoses(tmp_path):
-    rounds,ep=packet_fixture(tmp_path)
-    rounds['events'][0]={'ordinal':0,'kind':'model_text','text':'Earlier check passed.'}
-    packet,_=build_packet(rounds,ep,3,'task',catalogue('a'),[],tmp_path)
-    row=target('a'); row.pop('target_id')
-    for diagnosis in [0,1]:
-        row['diagnosis_ids']=[diagnosis]
-        with pytest.raises(ValueError,match='responses in this round'):
-            validate_targets({'targets':[row]},packet,catalogue('a'))
+    from test_vsv_check_stages import fixture
+    from multimodalcode.vsv_eval.check_stages import validate_stage, metric_packet
+    _,cat,packet,_,responses,_,_=fixture(tmp_path)
+    checks=validate_stage('VC',responses['text_vc'],packet,cat)
+    supplied=metric_packet(packet,checks)
+    for eid in [0,1,99]:
+        responses['text_bda']['targets'][0]['diagnosis_ids']=[eid]
+        with pytest.raises(ValueError): validate_stage('BDA',responses['text_bda'],supplied,cat)
 
 
 def test_exact_state_assertions_do_not_share_a_group_verdict(tmp_path):
@@ -367,22 +326,9 @@ def test_repair_transition_rejects_later_versions_and_unrelated_edits():
         validate_transition(transition,versions,events,episodes,{'a'})
 
 
-def test_saved_labels_require_original_response_and_complete_boundaries(tmp_path):
-    rounds,ep=packet_fixture(tmp_path)
-    ep.update(relation_annotation_complete=True,repair_links=[])
-    cat=catalogue('a'); cat['task_sha256']=hashlib.sha256(b'task').hexdigest()
-    packet,_=build_packet(rounds,ep,3,'task',cat,[],tmp_path)
-    input_path=tmp_path/'input.json'; input_path.write_text(json.dumps(packet))
-    raw=target('a',agent='absent'); raw.pop('target_id')
-    row=episode(*validate_targets({'targets':[raw]},packet,cat),requests=[{'input_path':str(input_path),'stage':'text_check',
-                            'request_sha256':'request','cutoff':3}],repair_event_ids=[])
-    cache=tmp_path/'judge_cache/text_check'; cache.mkdir(parents=True)
-    response=cache/'request.json'
-    response.write_text(json.dumps({'request_sha256':'request','prompt':'Prompt\n'+json.dumps(packet,ensure_ascii=False),'parsed':{'targets':[raw]}}))
-    assert validate_saved_episode(row,tmp_path,rounds,cat)['targets']==row['targets']
-    row['targets'][0]['actual_state']='fail'
-    with pytest.raises(ValueError,match='differ'):
-        validate_saved_episode(row,tmp_path,rounds,cat)
+def test_historical_joint_labels_cannot_be_reused_as_current_protocol(tmp_path):
+    with pytest.raises(ValueError, match='different protocol'):
+        validate_saved_episode({'requests':[]}, tmp_path, {}, {})
 
 
 def test_offline_repair_runs_fixed_goals_and_rejects_unsubstantiated_labels(tmp_path, monkeypatch):
@@ -423,8 +369,8 @@ def test_offline_repair_runs_fixed_goals_and_rejects_unsubstantiated_labels(tmp_
     result=evaluate_states(rounds,cat,spec,config,out,offline=True,allow_draft=True,workers=2)
     repairs=load_repair_results(out/'repair_results.json',rounds,cat)
     metric=summarize(catalogue('a','b'),[episode(target('a',actual='fail'),repair_event_ids=[2,4])],repairs)
-    assert metric['RS']['score']==100
-    assert metric['CP']['unknown_count']==1 and metric['VCS']['unknown_count']==1
+    assert metric['RSR']['score']==100
+    assert metric['CPR']['unassessed_count']==1
     state_path=out/'state_results/V1.json'; state=read_json(state_path)
     state['checks'][0]['state']='fail'; write_json(state_path,state)
     result['state_result_sha256']['V1']=hashlib.sha256(state_path.read_bytes()).hexdigest()
@@ -464,7 +410,7 @@ def test_source_events_cannot_be_rewritten(tmp_path):
 
 
 def test_state_metric_inputs_keep_shared_evidence_and_exclude_other_targets():
-    from multimodalcode.vsv_eval.states import state_metric_packet
+    from multimodalcode.vsv_eval.states import acceptance_packet
     packet = {
         'checks': [{'check_id':'repair','reference_ids':['winston']},
                    {'check_id':'content','reference_ids':['winston']},
@@ -480,12 +426,12 @@ def test_state_metric_inputs_keep_shared_evidence_and_exclude_other_targets():
     original = copy.deepcopy(packet)
     spec = {'transitions':[{'before':'V3','after':'V4','target_ids':['repair']}]}
     cat = {'checks':[packet['checks'][1], packet['checks'][2]]}
-    rs = state_metric_packet(packet,spec,cat,'V3','RS')
+    rs = acceptance_packet(packet, check_ids=['repair'])
     assert [c['check_id'] for c in rs['checks']] == ['repair']
     assert rs['evidence'] == [packet['evidence'][0]] and not rs['rule_facts']
     assert [v['path'] for v in rs['image_order']] == ['winston-ref','winston-shot']
     assert [v['attachment_index'] for v in rs['image_order']] == [1,2]
-    cp = state_metric_packet(packet,spec,cat,'V3','CP')
+    cp = acceptance_packet(packet, check_ids=['content','other'])
     assert cp['evidence'] == packet['evidence'] and len(cp['image_order']) == 4
     assert [c['check_id'] for c in cp['checks']] == ['content','other']
     assert packet == original
@@ -698,18 +644,21 @@ def test_invalid_model_plans_are_rejected_without_approval_or_fallback(tmp_path,
     assert not (tmp_path/'prepared/catalogue.json').exists()
 
 
-def test_unresolved_criterion_cannot_become_known_from_exact_or_model_labels(tmp_path):
-    cat = catalogue('a'); cat['unresolved_check_ids'] = ['a']
-    cat['criteria_sha256'] = criteria_hash(cat['checks'],['a'])
-    validate_catalogue(cat,allow_draft=True)
-    rounds,ep = packet_fixture(tmp_path)
-    packet,_ = build_packet(rounds,ep,3,'task',cat,[],tmp_path)
-    row=target('a'); row.pop('target_id')
-    with pytest.raises(ValueError,match='unresolved criterion'):
-        validate_targets({'targets':[row]},packet,cat)
-    replay={'routes':{},'checks':[]}
-    state,_ = state_packet(cat,{'version':'v'},replay,{},tmp_path)
-    assert state['rule_facts'] == [{'check_id':'a','state':'unknown','evidence_ids':[]}]
+def test_unresolved_catalogue_is_rejected_before_model_calls(tmp_path):
+    from test_vsv_system import inputs
+    from multimodalcode.vsv_eval.system import preflight, load_experiment
+    inputs(tmp_path)
+    cat=read_json(tmp_path/'catalogue.json');cat['unresolved_check_ids']=['page']
+    cat['criteria_sha256']=criteria_hash(cat['checks'],cat['unresolved_check_ids'])
+    write_json(tmp_path/'catalogue.json',cat)
+    experiment=load_experiment(tmp_path/'experiment.json')
+    result=preflight(experiment['cases'][0],experiment,tmp_path/'preflight')
+    assert any('acceptance conflicts' in issue for issue in result['issues'])
+    from multimodalcode.vsv_eval.evaluation import evaluate_rounds
+    case=experiment['cases'][0]
+    with pytest.raises(ValueError, match='acceptance conflicts'):
+        evaluate_rounds(case['rounds_json'],case['catalogue'],case['task_root'],experiment['config'],
+                        tmp_path/'checks',allow_draft=True)
 
 
 def test_one_check_can_reference_multiple_repaired_conditions():
@@ -718,19 +667,19 @@ def test_one_check_can_reference_multiple_repaired_conditions():
               'states': [{'check_id': 'a', 'before': 'fail', 'after': 'pass'},
                          {'check_id': 'b', 'before': 'fail', 'after': 'fail'}]}
     result = summarize(catalogue('a', 'b'), [episode(target('original', actual='fail'), repair_event_ids=[4])], [repair])
-    assert result['RS']['score'] == 50
-    assert result['VCS']['failure_count'] == 1
+    assert result['RSR']['score'] == 50
+    assert result['RSR']['failure_count'] == 1
 
 
 def test_state_judgment_groups_follow_existing_workflows():
-    from multimodalcode.vsv_eval.states import state_check_groups, state_metric_packet
+    from multimodalcode.vsv_eval.states import state_check_groups, acceptance_packet
     cat = catalogue('a', 'b', 'c')
     packet = {'version':'v', 'checks':cat['checks'], 'rule_facts':[], 'image_order':[],
               'evidence':[{'evidence_id':'w:initial','workflow_id':'w','check_ids':[]},
                           {'evidence_id':'w:0','workflow_id':'w','check_ids':['a','c']},
                           {'evidence_id':'z:0','workflow_id':'z','check_ids':['b']}]}
     assert state_check_groups(packet, cat['checks']) == [['a','c'], ['b']]
-    supplied = state_metric_packet(packet, {}, cat, 'v', 'CP', check_ids=['a','c'])
+    supplied = acceptance_packet(packet, check_ids=['a','c'])
     assert {r['evidence_id'] for r in supplied['evidence']} == {'w:initial','w:0'}
     assert {c['check_id'] for c in supplied['checks']} == {'a','c'}
     packet['evidence'].append({'evidence_id':'z:1','workflow_id':'z','check_ids':['a']})
@@ -766,52 +715,32 @@ def test_parallel_image_views_publish_matching_hashes(tmp_path, monkeypatch):
 
 
 def test_incomplete_rates_are_not_reported_as_full_scores():
-    from multimodalcode.vsv_eval.metrics import proportion
-    row = proportion([True, False, None])
-    assert row['score'] is None and row['known_score'] == 50
-    assert row['sample_count'] == 3 and row['denominator'] == 2
-    assert row['lower_bound'] == pytest.approx(100/3)
-    assert row['upper_bound'] == pytest.approx(200/3)
     complete = summarize(catalogue('a'), [episode(target('a'))])
     partial = summarize(catalogue('a'), [episode(target('a', evidence_ok=None))])
-    assert macro_average([complete, partial])['CV']['score'] is None
+    assert macro_average([complete, partial])['VC']['score'] is None
 
 
-def test_recheck_must_cover_the_repaired_condition_and_use_new_evidence():
-    from multimodalcode.vsv_eval.metrics import recheck_status
-    original = episode(target('a', actual='fail', modality='visual'), repair_event_ids=[4])
-    follow = episode(target('a', modality='visual', evidence_ids=[7]), eid='later')
-    repairs = [{'episode_ids':['e'], 'repair_event_ids':[4], 'target_ids':['a']}]
-    rounds = {'episodes': [
-        {'episode_id':'e', 'core_event_ids':[1,2,3], 'relation_annotation_complete':True,
-         'repair_links':[{'repair_event_ids':[4], 'recheck_episode_ids':['later']}]},
-        {'episode_id':'later', 'core_event_ids':[6,7,8],
-         'evidence_states':[{'event_id':7, 'producer_event_id':6}]}]}
-    args = (original, original['targets'][0], [original, follow], rounds, repairs)
-    assert recheck_status(*args) is True
-    # A shared-component fix followed by inspection of another page is not enough.
-    follow['targets'][0] = target('b', modality='visual', evidence_ids=[7])
-    assert recheck_status(*args) is None  # Different IDs alone cannot settle correspondence.
-    assert recheck_status(*args, matches=[]) is False
-    follow['targets'][0] = target('a', modality='visual', evidence_ids=[7])
-    rounds['episodes'][1]['evidence_states'][0]['producer_event_id'] = 2
-    assert recheck_status(*args) is False
-    rounds['episodes'][1]['evidence_states'][0]['producer_event_id'] = 6
-    follow['targets'][0]['agent_state'] = 'absent'
-    assert recheck_status(*args) is False
+def test_scope_preserves_context_and_rejects_checks_crossing_initial_boundary():
+    from multimodalcode.vsv_eval.scope import scoped_rounds, validate_scope
+    rounds={'events':[{'ordinal':i,'kind':'action' if i%2==0 else 'observation'} for i in range(6)],
+        'episodes':[{'episode_id':'early','core_event_ids':[0,1]},
+                    {'episode_id':'later','core_event_ids':[4,5],'context_event_ids':[0,1]}]}
+    scope=validate_scope({'initial_implementation_event_id':3},rounds)
+    selected=scoped_rounds(rounds,scope)
+    assert [e['episode_id'] for e in selected['episodes']]==['later']
+    assert selected['events']==rounds['events'] and selected['episodes'][0]['context_event_ids']==[0,1]
+    assert scoped_rounds(rounds,{'initial_implementation_event_id':None})['episodes']==[]
+    rounds['episodes'][1]['core_event_ids']=[2,3,4,5]
+    with pytest.raises(ValueError,match='crosses'):
+        scoped_rounds(rounds,scope)
 
 
-def test_acceptance_success_does_not_replace_the_agents_recheck():
-    e = episode(target('a', actual='fail'), repair_event_ids=[4])
-    repair = {'episode_ids':['e'], 'repair_event_ids':[4], 'target_ids':['a'],
-              'states':[{'check_id':'a', 'before':'fail', 'after':'pass'}]}
-    rounds = {'episodes':[{'episode_id':'e', 'core_event_ids':[1,2,3],
-                          'relation_annotation_complete':True,
-                          'repair_links':[{'repair_event_ids':[4], 'recheck_episode_ids':[]}]}]}
-    scores = summarize(catalogue('a'), [e], [repair], rounds=rounds)
-    assert scores['RS']['score'] == 100
-    assert scores['VCS']['score'] == 0
-    assert scores['VCS']['episodes'][0]['rechecks'] == [{'target_id':'a', 'verified':False}]
+def test_rechecking_is_not_a_repair_success_requirement():
+    repairs = [{'episode_ids':['e'], 'target_ids':['a'], 'states':[
+        {'check_id':'a','before':'fail','after':'pass'}]}]
+    result = summarize(catalogue('a'), [episode(target('a', actual='fail'))], repairs)
+    assert result['RSR']['score'] == 100
+    assert 'VCS' not in result and 'RVR' not in result
 
 
 def test_findings_distinguish_missing_diagnosis_from_wrong_diagnosis():

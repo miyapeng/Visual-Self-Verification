@@ -186,7 +186,7 @@ class VerificationReward:
             states = list(exact.values())
         else:
             images = [v['path'] for v in packet['image_order']]
-            states = validate_states(self._judge('visual_rs', STATE_PROMPT, packet, images, STATE_SCHEMA), packet)
+            states = validate_states(self._judge('visual_acceptance', STATE_PROMPT, packet, images, STATE_SCHEMA), packet)
         if any(r['state'] == 'unknown' for r in states):
             raise ValueError('Acceptance lacks decisive evidence for this checkpoint')
         write_json(self.output / f'{label}-acceptance.json', {'packet': packet, 'states': states})
@@ -238,11 +238,11 @@ class VerificationReward:
         path = self.output / 'run.json'
         write_json(path, run)
         if self.client_factory:
-            judge = self.client_factory('verification_filter', None)
+            judge = self.client_factory('verification_annotation', None)
         else:
             config = load_judge_config(self.spec['judge_config'])
-            judge = build_client(config, self.spec.get('primary_profile') or config['primary_stage_profiles']['verification_filter'],
-                                 self.output / 'judge_cache' / 'verification_filter')
+            judge = build_client(config, self.spec.get('primary_profile') or config['primary_stage_profiles']['verification_annotation'],
+                                 self.output / 'judge_cache' / 'verification_annotation')
         rounds = extract_verification_rounds(path, judge)
         write_json(self.output / 'verification_rounds.json', rounds)
         catalogue = self._catalogue()

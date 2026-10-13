@@ -74,26 +74,27 @@ def test_execution_orders_checks_states_join_and_keeps_scores(tmp_path, monkeypa
     target = {'check_id': 'page', 'target_id': 't1', 'coverage': 'full', 'method_ok': True,
               'evidence_ok': True, 'actual_state': 'pass', 'agent_state': 'pass',
               'issue_match': None, 'modality': 'text'}
-    episodes = [{'episode_id': 'e1', 'status': 'evaluated', 'targets': [target],
+    episodes = [{'episode_id': 'e1', 'status': 'evaluated', 'targets': [target], 'assessments': [target],
                  'repair_event_ids': [], 'relation_annotation_complete': True}]
     result = {'status': 'evaluated', 'episodes': episodes, 'repair_gaps': [],
-              'metrics': summarize(catalogue, episodes)}
-    monkeypatch.setattr(system, 'evaluate_rounds', lambda *a, **k: calls.append('checks'))
+              'scope': {'initial_implementation_event_id':0},
+              'metrics': summarize(catalogue, episodes, scope={'initial_implementation_event_id':0})}
+    monkeypatch.setattr(system, 'evaluate_rounds', lambda *a, **k: calls.append('checks') or result)
     monkeypatch.setattr(system, 'evaluate_states', lambda *a, **k: calls.append('states'))
     def finalize(checks, output, repairs):
         calls.append('join')
         assert Path(checks).name == 'scores.json'
-        assert Path(repairs).name == 'repair_results.json'
+        assert repairs is None
         return result
     monkeypatch.setattr(system, 'finalize_evaluation', finalize)
     row = system.run_case(case, config, tmp_path / 'out')
-    assert calls == ['checks', 'states', 'join']
+    assert calls == ['checks', 'join']
     assert row['status'] == 'completed'
     assert row['metrics']['VC']['score'] == 100
-    assert row['metrics']['CV-T']['score'] == 100
-    assert row['metrics']['RS']['assessment_status'] == 'not_applicable'
-    assert row['metrics']['BDA']['assessment_status'] == 'scored'
-    assert row['metrics']['BDA']['score'] == 100
+    assert row['metrics']['CAR-T']['score'] == 100
+    assert row['metrics']['RSR']['assessment_status'] == 'not_applicable'
+    assert row['metrics']['CAR']['assessment_status'] == 'scored'
+    assert row['metrics']['CAR']['score'] == 100
 
 
 def test_failure_preserves_progress_and_same_command_can_resume(tmp_path, monkeypatch):
@@ -105,13 +106,13 @@ def test_failure_preserves_progress_and_same_command_can_resume(tmp_path, monkey
         seen.append(case['id'])
         if case['id'] == 'model-task':
             raise RuntimeError('Provider unavailable')
-        return {'status': 'completed', 'metrics': {}}
+        return {'status': 'completed', 'metrics': summarize({'checks':[]}, [], scope={'initial_implementation_event_id':0})}
     monkeypatch.setattr(system, 'run_case', run)
     output = tmp_path / 'out'
     assert system.run_experiment(tmp_path / 'experiment.json', output) == 2
     assert seen == ['model-task', 'second']
     assert [r['status'] for r in read_json(output / 'summary.json')['cases']] == ['failed', 'completed']
-    monkeypatch.setattr(system, 'run_case', lambda *a: {'status': 'completed', 'metrics': {}})
+    monkeypatch.setattr(system, 'run_case', lambda *a: {'status': 'completed', 'metrics': summarize({'checks':[]}, [], scope={'initial_implementation_event_id':0})})
     assert system.run_experiment(tmp_path / 'experiment.json', output) == 0
     (tmp_path / 'task/prompt.txt').write_text('Changed task')
     with pytest.raises(ValueError, match='inputs changed'):
@@ -123,36 +124,37 @@ def test_final_validation_rejects_missing_or_duplicate_rounds(tmp_path):
     row = {'episode_id': 'e1', 'status': 'evaluated'}
     for episodes in ([], [row, row], [{**row, 'status': 'pending'}]):
         with pytest.raises(ValueError, match='pending rounds'):
-            system.verify_complete({'episodes': episodes, 'repair_gaps': []}, tmp_path / 'rounds.json')
+            system.verify_complete({'episodes': episodes, 'repair_gaps': [], 'scope': {'initial_implementation_event_id':0}}, tmp_path / 'rounds.json')
     with pytest.raises(ValueError, match='unassessed repair'):
-        system.verify_complete({'episodes': [row], 'repair_gaps': [{}]}, tmp_path / 'rounds.json')
+        system.verify_complete({'episodes': [row], 'repair_gaps': [{}], 'scope': {'initial_implementation_event_id':0}}, tmp_path / 'rounds.json')
 
 
-def test_unresolved_subset_is_not_displayed_as_a_complete_score():
-    row = system.metric_record('CP', {'score': 100, 'success_count': 2, 'unknown_count': 1})
-    assert row['score'] == 100  # Keep existing arithmetic available for audit.
-    assert system.display_metric(row) == 'unresolved'
-    gap = system.metric_record('Repair-regression-rate', {'score': None, 'unassessed_transition_count': 1})
-    assert system.display_metric(gap) == 'unresolved'
+def test_incomplete_evaluation_cannot_display_a_subset_as_a_complete_score():
+    row = system.metric_record('CPR', {'score': None, 'status':'incomplete', 'unassessed_count':1})
+    assert system.display_metric(row) == 'incomplete'
 
 
-def test_comparison_exports_requirement_and_repair_breakdowns(tmp_path):
+def test_comparison_exports_six_rates_and_equal_task_model_means(tmp_path):
     import csv
-    rate = {'score': 50, 'success_count': 1, 'failure_count': 1, 'unknown_count': 0}
-    metrics = {
-        'VC': system.metric_record('VC', {**rate, 'by_requirement_type': {
-            'visual': {**rate, 'classification_complete': True},
-            'interactive': {**rate, 'score': None, 'classification_complete': False}}}),
-        'BDA-V': system.metric_record('BDA-V', {**rate, 'error': rate}),
-        'RS': system.metric_record('RS', {**rate, 'diagnosed_visual': rate}),
-        'CP': system.metric_record('CP', {**rate, 'repair_outcomes': {'regression_rate': rate}}),
-    }
-    system.write_summary([{'id': 'case', 'model': 'model', 'status': 'completed', 'metrics': metrics}], tmp_path)
-    with (tmp_path / 'comparison.csv').open() as handle:
-        row = next(csv.DictReader(handle))
-    assert row['VC-visual-requirements'] == '50.00%'
-    assert row['VC-interactive-requirements'] == 'unclassified'
-    assert row['BDA-visible-defects'] == row['RS-diagnosed-visual'] == row['Repair-regression-rate'] == '50.00%'
+    def scores(passed):
+        return summarize({'checks':[{'check_id':'a'}]}, [{'status':'evaluated','targets':[
+            {'check_id':'a','coverage':'full' if passed else 'none','method_ok':True,'evidence_ok':True}],
+            'assessments':[]}], scope={'initial_implementation_event_id':0})
+    rows=[{'id':str(i),'task_id':task,'model':model,'status':'completed', 'metrics':scores(passed)}
+          for i,(task,model,passed) in enumerate([('a','model',True),('a','model',False),('b','model',True),
+                                               ('a','other',True),('b','other',False)])]
+    system.write_summary(rows,tmp_path)
+    saved=read_json(tmp_path/'summary.json')
+    assert saved['model_macro_averages']['model']['metrics']['VC']['score']==75
+    assert saved['model_macro_averages']['other']['metrics']['VC']['score']==50
+    with (tmp_path/'comparison.csv').open() as handle:
+        row=next(csv.DictReader(handle))
+    assert all(m in row for m in system.METRICS)
+    assert 'CV' not in row and 'VCS' not in row
+    rows[-1]['status']='failed'
+    means=system.model_averages(rows)
+    assert means['model']['metrics']['VC']['score']==50
+    assert means['model']['task_ids']==[['vision2web','a']]
 
 
 def test_manifest_rejects_case_collisions_and_conflicting_sources(tmp_path):
@@ -161,3 +163,16 @@ def test_manifest_rejects_case_collisions_and_conflicting_sources(tmp_path):
     write_json(tmp_path / 'experiment.json', manifest)
     with pytest.raises(ValueError, match='unique'):
         system.load_experiment(tmp_path / 'experiment.json')
+
+
+def test_same_task_cannot_use_different_criteria_for_different_models(tmp_path, monkeypatch):
+    manifest, _, catalogue = inputs(tmp_path)
+    catalogue['checks'][0]['criterion'] = 'Different acceptance condition.'
+    catalogue['criteria_sha256'] = content_hash(catalogue['checks'])
+    write_json(tmp_path / 'other_catalogue.json', catalogue)
+    manifest['cases'].append({**manifest['cases'][0], 'id': 'other', 'model': 'other',
+                              'catalogue': 'other_catalogue.json'})
+    write_json(tmp_path / 'experiment.json', manifest)
+    monkeypatch.setattr(system, 'run_case', lambda *args: pytest.fail('Inconsistent criteria reached scoring'))
+    with pytest.raises(ValueError, match='same frozen catalogue'):
+        system.run_experiment(tmp_path / 'experiment.json', tmp_path / 'out')

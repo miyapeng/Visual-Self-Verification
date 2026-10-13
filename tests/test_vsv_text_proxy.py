@@ -117,12 +117,11 @@ def test_proxy_packet_does_not_load_image_pixels(tmp_path, monkeypatch):
     assert result['missing_images'][0]['agent_received_image'] is True
 
 
-def test_proxy_display_retains_unresolved_denominator():
+def test_proxy_display_keeps_unassessed_evidence_distinct_from_failure():
     from multimodalcode.vsv_eval.text_proxy import metric_display
-    from multimodalcode.vsv_eval.metrics import proportion, diagnosis_summary
-    assert metric_display('CP', proportion([True, None])) == '50.00–100.00'
-    one_class = diagnosis_summary([{'actual_state': 'pass', 'agent_state': 'pass', 'issue_match': None}])
-    assert metric_display('BDA', one_class) == 'N/A (missing class)'
+    from multimodalcode.vsv_eval.metrics import rate
+    assert metric_display('CPR', rate([True, None])) == 'incomplete'
+    assert metric_display('EDR', rate([])) == 'not_applicable'
 
 
 def test_proxy_normalizes_duplicate_references_without_changing_labels():
@@ -202,16 +201,15 @@ def test_proxy_augmentation_keeps_known_strict_labels_and_only_fills_gaps(tmp_pa
     known, filled = result['episodes'][0]['targets']
     assert known['coverage'] == 'partial' and known['evidence_ok'] is False and known['agent_state'] == 'absent'
     assert filled['coverage'] == 'full' and filled['method_ok'] is True and filled['actual_state'] == 'fail'
-    assert result['metrics']['BDA']['score'] == 50
+    assert result['metrics']['EDR']['score'] == 100
+    assert result['metrics']['CAR']['score'] == 0
     assert (baseline/'scores.json').read_bytes() == before
 
 
-def test_known_error_class_with_unresolved_match_still_has_bda_bounds():
+def test_proxy_missing_comparison_does_not_publish_a_success_rate():
     from multimodalcode.vsv_eval.text_proxy import metric_display
-    from multimodalcode.vsv_eval.metrics import diagnosis_summary
-    row = diagnosis_summary([{'actual_state': 'pass', 'agent_state': 'pass', 'issue_match': None},
-                             {'actual_state': 'fail', 'agent_state': 'fail', 'issue_match': None}])
-    assert metric_display('BDA', row) == '50.00–100.00'
+    from multimodalcode.vsv_eval.metrics import rate
+    assert metric_display('EDR', rate([True, None])) == 'incomplete'
 
 
 def test_preservation_uses_prior_checks_outside_the_defect_round():

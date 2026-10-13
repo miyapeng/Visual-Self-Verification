@@ -127,7 +127,9 @@ def test_six_metric_runner_with_real_command_acceptance(tmp_path,monkeypatch,ben
         cache=Path(cache)
         def judge(stage,prompt,images,**kwargs):
             calls.append(stage)
-            if stage=='plan_review':
+            if stage=='implementation_boundary':
+                value={'initial_implementation_event_id':-1}
+            elif stage=='plan_review':
                 value={'checks':cat['checks'],'repair_checks':[],'unresolved_check_ids':[],
                        'acceptance_workflows':[{'probe_id':'inspect','check_ids':['a','b']}],
                        'repair_bindings':[{'id':'repair-3','target_ids':['a'],
@@ -136,7 +138,7 @@ def test_six_metric_runner_with_real_command_acceptance(tmp_path,monkeypatch,ben
                 value={'matches':[{'episode_id':'before','target_id':'a','recheck_episode_id':'after','recheck_target_id':'a'}]}
             else:
                 packet=json.loads(prompt.split('EVIDENCE:\n',1)[1])
-                if stage.endswith(('_rs','_cp')):
+                if stage.endswith('_acceptance'):
                     # Mock only semantic judgments; the observations came from real subprocesses.
                     observed=packet['evidence'][0]
                     assert observed['observation']['returncode']==0
@@ -151,8 +153,7 @@ def test_six_metric_runner_with_real_command_acceptance(tmp_path,monkeypatch,ben
                         value={'targets':[{'target_id':c,'method_ok':True,'evidence_ok':True,'evidence_ids':[obs]} for c in ['a','b']]}
                     elif stage.endswith('_observation'):
                         value={'targets':[{'target_id':c,'actual_state':'fail' if before and c=='a' else 'pass',
-                            'actual_issue':{'object':'item','symptom':'missing'} if before and c=='a' else None,'evidence_ids':[obs]} for c in ['a','b']],
-                            'additional_defects':[]}
+                            'actual_issue':{'object':'item','symptom':'missing'} if before and c=='a' else None,'evidence_ids':[obs]} for c in ['a','b']]}
                     elif stage.endswith('_bda'):
                         value={'targets':[{'target_id':c,'agent_state':'fail' if before and c=='a' else 'pass',
                             'issue_match':True if before and c=='a' else None,'diagnosis_ids':[diag]} for c in ['a','b']]}
@@ -168,7 +169,8 @@ def test_six_metric_runner_with_real_command_acceptance(tmp_path,monkeypatch,ben
     assert row['benchmark']==benchmark
     assert row['status']=='completed'
     assert all(row['metrics'][m]['score']==100 for m in system.METRICS)
-    assert 'text_rs' in calls and 'text_cp' in calls
+    assert calls.count('text_acceptance') == 2
+    assert 'text_rs' not in calls and 'text_cp' not in calls
     assert not any(c=='gui_step' for c in calls)
     # The same request/response evidence also validates on a resumed complete run.
     assert system.run_experiment(tmp_path/'experiment.json',tmp_path/'out')==0

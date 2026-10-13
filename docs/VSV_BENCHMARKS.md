@@ -2,7 +2,8 @@
 
 The shared evaluator supports Vision2Web, SWE-bench Multimodal, 3DCodeBench and
 GameDevBench. Task import and acceptance execution vary; extraction, JudgeClient,
-VC/CV/BDA, RS/CP, recheck alignment, metric arithmetic and result validation are shared.
+Boundary annotation, evidence/diagnosis stages, shared acceptance, six-metric arithmetic
+and result validation are shared. See [the current protocol](self_verification_evaluation.md).
 No benchmark has its own scoring formula. Keep per-benchmark results separate when
 comparing models; the task distributions and verification opportunities differ.
 
@@ -135,8 +136,8 @@ The existing plan model assigns fixed criterion IDs to supplied probe IDs and bi
 current check targets to original repair events. It cannot modify probe commands.
 The program validates coverage of the acceptance plan. Conditions that no supplied
 probe can observe are reported as configuration gaps rather than fabricated passes.
-RS/CP use the existing state Judge and formulas. Evaluator observations remain separate
-from the agent's own rechecks: independent acceptance never grants VCS recheck credit.
+RSR/CPR use one shared acceptance table per version. Evaluator observations remain
+separate from the original agent observations used for EDR/CAR.
 
 Static views cannot demonstrate animation or gameplay. Provide a probe with actual
 input actions and resulting observations for those criteria. Official aggregate

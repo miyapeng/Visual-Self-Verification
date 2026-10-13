@@ -90,71 +90,34 @@ th{{background:#f4f6fa;text-align:left}}code,pre{{background:#f4f6fa}}pre{{paddi
 
 
 def write_protocol_report(result, path):
-    """A concise review artifact; original evidence remains in referenced inputs."""
-    from .metrics import check_validity, diagnosis_correct
-    def value(number):
-        return 'NA' if number is None else f'{number:.2f}'
+    """Point scores and their original evidence references."""
+    from .metrics import diagnosis_correct
+    def value(row):
+        return f"{row['score']:.2f}" if row['score'] is not None else row['status']
     lines = ['# Self-verification evaluation', '',
-             f"Case: `{result['case_id']}`. Status: **{result['status']}**. Semantic labels: **model judgments**.", '',
-             f"Source rounds: `{result['source_rounds']}`.",
-             f"Catalogue: `{result['catalogue']}`; review status: `{result['catalogue_review']['status']}`.", '',
-             f"Judgment method: `{result.get('judgment_method', 'historical_joint_calls')}`.", '',
-             '| Metric | Score (0–100) | Success | Failure | Unknown |',
-             '|---|---:|---:|---:|---:|']
-    for key, row in result['metrics'].items():
-        score = value(row['score'])
-        if key.startswith('BDA') and row['score'] is None and row.get('lower_bound') is not None:
-            score = f"{value(row['lower_bound'])}–{value(row['upper_bound'])}"
-        lines.append(f"| {key} | {score} | {row.get('success_count',0)} | {row.get('failure_count',0)} | {row.get('unknown_count',0)} |")
-    vc = result['metrics']['VC']
-    lines += ['', f"Coverage bounds: {value(vc['lower_bound'])}–{value(vc['upper_bound'])}; partial goals: {vc['partial_count']}.", '',
-              f"Unassessed repair episodes: {result['metrics']['RS'].get('unassessed_episode_count',0)}; "
-              f"unassessed artifact transitions: {result['metrics']['CP'].get('unassessed_transition_count',0)}.", '',
-              'Unknown coverage is a range, not an exact score. Incomplete evidence withholds the full score; known-subset rates are diagnostic only.',
-              'A high measured preservation rate does not establish complete regression coverage. Repair links alone do not establish repair success.', '']
-    if 'by_requirement_type' in vc:
-        lines += ['| Requirement type | VC | Fully checked | Requirements |', '|---|---:|---:|---:|']
-        for kind, row in vc['by_requirement_type'].items():
-            score = value(row['score']) if row['classification_complete'] else 'Unclassified catalogue'
-            lines.append(f"| {kind} | {score} | {row['success_count']} | {row['denominator']} |")
-        lines += ['', 'These labels describe requirements, not visual/text evidence. Visual and interactive groups can overlap.',
-                  f"Unclassified requirement IDs: {vc['unclassified_check_ids']}.", '']
-    diagnosed = result['metrics']['RS'].get('diagnosed_visual')
-    outcomes = result['metrics']['CP'].get('repair_outcomes')
-    if diagnosed is not None and outcomes is not None:
-        lines += [f"RS after a correct visual diagnosis and a confirmed baseline defect: {value(diagnosed['score'])}; "
-                  f"{diagnosed['success_count']}/{diagnosed['sample_count']} target-transition pairs. "
-                  f"Unverified baselines excluded from this conditional group: {diagnosed['unverified_baseline_count']}.", '',
-                  'Local repair and regression refer to the same version transition. Later recovery does not erase an earlier failed attempt.',
-                  '| Transition | Edit IDs | Local repair passed | Regression elsewhere | Regressed requirements |',
-                  '|---|---|---|---|---|']
-        for row in outcomes['transitions']:
-            lines.append(f"| {row.get('before', '?')} → {row.get('after', '?')} | {row.get('repair_event_ids', [])} | "
-                         f"{row['local_repair_success']} | {row['elsewhere_regression']} | {row['regressed_check_ids']} |")
-        lines += ['', f"Joint outcomes: {outcomes['joint_outcomes']}.", '']
-    for metric in ('BDA', 'BDA-V', 'BDA-T'):
-        summary = result['metrics'][metric]
-        lines += ['', f"{metric} includes missing and uncertain diagnoses on decidable observations. "
-                  f"{summary.get('absent_count', 0)} absent and {summary.get('uncertain_count', 0)} uncertain "
-                  'conclusions occur across all targets; those with unknown actual states remain unknown.',
-                  f"Known-evidence class-macro accuracy: {value(summary.get('known_score'))}. "
-                  'This subset score is not the full result when unknowns remain. Bounds vary unresolved actual states '
-                  'and issue matches; missing conclusions never earn credit in either bound. These are uncertainty '
-                  'bounds, not statistical confidence intervals.', '']
-        lines += ['| Diagnosis group | Class | Accuracy | Success | Failure | Unknown |',
-                  '|---|---|---:|---:|---:|---:|']
-        for group in ('normal', 'error'):
-            row = result['metrics'][metric][group]
-            lines.append(f"| {metric} | {group} | {value(row['score'])} | {row['success_count']} | {row['failure_count']} | {row['unknown_count']} |")
-    lines += ['',
-              '| Episode | Target | Attempted check | Coverage | Actual | Agent | Validity | Diagnosis | Evidence IDs | Diagnosis IDs |',
-              '|---|---|---|---|---|---|---|---|---|---|']
+             f"Case: `{result['case_id']}`. Protocol: `{result['protocol_version']}`.",
+             f"Source: `{result['source_rounds']}`. Catalogue: `{result['catalogue']}`.",
+             'Semantic labels are model judgments; correctness calibration is reported separately.', '',
+             '| Metric | Percent | Success | Failure | Opportunities | Unassessed |',
+             '|---|---:|---:|---:|---:|---:|']
+    for name, row in result['metrics'].items():
+        lines.append(f"| {name} | {value(row)} | {row['success_count']} | {row['failure_count']} | "
+                     f"{row['denominator']} | {row['unassessed_count']} |")
+    lines += ['', 'No opportunity is N/A. Infrastructure or missing acceptance evidence leaves the evaluation incomplete.',
+              'Coverage counts valid full checks once per requirement. Partial checks receive no fractional credit.',
+              'EDR/CAR include missing judgments on decidable observations. Unobserved conditions affect coverage, not diagnosis.',
+              'RSR requires a failing baseline. CPR includes passing non-target conditions from the same transitions.', '',
+              '| Round | Requirement | Modality | Observed | Agent | Correct | Evidence IDs | Judgment IDs |',
+              '|---|---|---|---|---|---|---|---|']
     for episode in result['episodes']:
-        if not episode['targets']:
-            lines.append(f"| {episode['episode_id']} | {episode['status']} | | | | | | | | |")
-        for target in episode['targets']:
-            valid = check_validity(target['method_ok'], target['evidence_ok'])
-            diagnosis = diagnosis_correct(target['actual_state'],target['agent_state'],target['issue_match'])
-            lines.append('| '+' | '.join(str(x).replace('|','\\|').replace('\n',' ') for x in [episode['episode_id'],target['target'],target.get('check_attempted', True),target['coverage'],
-                         target['actual_state'],target['agent_state'],valid,diagnosis,target['evidence_ids'],target['diagnosis_ids']])+' |')
-    Path(path).write_text('\n'.join(lines)+'\n')
+        for t in episode.get('assessments', []):
+            values = [episode['episode_id'], t['check_id'], t['modality'], t['actual_state'], t['agent_state'],
+                      diagnosis_correct(t['actual_state'], t['agent_state'], t['issue_match']),
+                      t['evidence_ids'], t['diagnosis_ids']]
+            lines.append('| ' + ' | '.join(str(v).replace('|', '\\|') for v in values) + ' |')
+    lines += ['', '| Transition | Edit IDs | Local success | Regression elsewhere | Regressed requirements |',
+              '|---|---|---|---|---|']
+    for t in result['metrics']['CPR']['transitions']:
+        lines.append(f"| {t.get('before')} → {t.get('after')} | {t.get('repair_event_ids')} | "
+                     f"{t['local_repair_success']} | {t['elsewhere_regression']} | {t['regressed_check_ids']} |")
+    Path(path).write_text('\n'.join(lines) + '\n')

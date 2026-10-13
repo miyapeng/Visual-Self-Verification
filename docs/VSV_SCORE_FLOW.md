@@ -1,5 +1,9 @@
 # How the six scores are computed
 
+This guide documents the earlier protocol. For current metrics and execution, see
+[the evaluation specification](self_verification_evaluation.md) and
+[runner guide](VSV_SYSTEM.md).
+
 These diagrams describe the local implementation inspected on 2026-10-08,
 protocol `requirement-level-20261006`. They do not report a new experiment or
 change the scoring definitions. The configured default Judge is
