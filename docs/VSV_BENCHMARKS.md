@@ -1,5 +1,8 @@
 # Evaluate multiple coding benchmarks
 
+The current study uses **Vision2Web** and **SWE-bench Multimodal**. The 3DCodeBench
+and GameDevBench adapters below are retained for reuse outside this study.
+
 The shared evaluator supports Vision2Web, SWE-bench Multimodal, 3DCodeBench and
 GameDevBench. Task import and acceptance execution vary; extraction, JudgeClient,
 Boundary annotation, evidence/diagnosis stages, shared acceptance, six-metric arithmetic

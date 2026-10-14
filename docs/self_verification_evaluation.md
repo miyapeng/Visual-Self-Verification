@@ -1,11 +1,13 @@
 # Self-verification evaluation
 
-Protocol: `evidence-diagnosis-repair-20261013`.
+Protocol: `evidence-diagnosis-repair-20261014`.
 
 The evaluation separates three questions: whether the agent acquires relevant
 verification evidence, whether it interprets that evidence correctly, and whether
 its attempted corrections improve the implementation without regressions.
 Models label evidence and cite original IDs; Python computes every rate.
+The current study uses Vision2Web and SWE-bench Multimodal. Other implemented
+adapters are retained outside the study cohort.
 
 ## 1. Fix the task specification
 
@@ -95,6 +97,14 @@ build result in the same round can have different modalities. Filenames and
 reference images are not agent observations. Independently discovered conditions
 do not create new attempted checks or inflate VC.
 
+The program also derives `evidence_origin` for each decidable condition from its
+cited observation attachments. Recorded text and original artifact images belong
+to `original`; any cited reconstructed artifact image puts the condition in
+`reconstructed`, including a condition citing both original and reconstructed
+images. Unrelated images and task references do not change either classification.
+The model does not generate this field. Reconstructed-image labels describe the
+replayed state; they do not establish historical pixel equivalence.
+
 The final round record has two small label tables: `targets` for attempted checks
 and `assessments` for independently decidable catalogue conditions. Raw events
 remain in the source trajectory. These tables have different denominators and
@@ -140,13 +150,31 @@ retain omitted judgments, false alarms, missed defects, unattempted diagnosed
 repairs and joint local-fix/regression outcomes. These are analyses of the same
 labels, not additional model-scored headline metrics.
 
+Every EDR/CAR result, including its visual/text breakdown, contains
+`by_evidence_origin.original` and `by_evidence_origin.reconstructed` with the same
+score and opportunity fields. Per-case totals include all supplied evidence;
+the report shows the two origin groups separately. Recorded textual judgments in
+a trajectory with restored screenshots remain in the original-evidence group.
+
 Compute run scores first, average repetitions within each task/model, then average
-tasks with equal weight. The runner compares models on their common completed
-task set and lists excluded tasks. Use explicit `task_id` values in the manifest
+tasks with equal weight. The runner keeps original-observation runs and runs using
+a reconstruction sidecar in separate comparison cohorts. Within each cohort it
+uses common completed tasks and lists excluded tasks. All repetitions and models
+for a task must use that cohort's evidence mode; it never selects only the
+convenient repetitions. Condition-level origin breakdowns retain their opportunity
+and contributing-task counts through both averaging steps.
+Use explicit `task_id` values in the manifest
 when task directories do not have unique benchmark-specific names. Report support
 counts and exclusion counts with every comparison. These trajectory-level
 comparisons describe encountered opportunities; matched checkpoint experiments
 are needed for controlled capability comparisons.
+
+In `summary.json`, model comparisons are stored under
+`model_macro_averages.original` and
+`model_macro_averages.reconstructed_observations`, followed by the model name.
+`comparison.csv` includes each case's `evidence_mode`; `comparison.md` also shows
+the diagnosis-origin breakdown and the separate model-average tables. Independent
+acceptance observations remain the evidence for RSR/CPR, not historical diagnoses.
 
 ## Reproducibility and validation
 

@@ -48,7 +48,8 @@ def target(cid, actual='pass', agent=None, **kwargs):
             'method_ok': True, 'evidence_ok': True, 'actual_state': actual,
             'actual_issue': {'object': cid, 'symptom': 'missing'} if actual == 'fail' else None,
             'agent_state': agent, 'issue_match': True if actual == 'fail' else None,
-            'evidence_ids': [1, 2], 'diagnosis_ids': [3] if agent != 'absent' else [], 'modality': 'text', **kwargs}
+            'evidence_ids': [1, 2], 'diagnosis_ids': [3] if agent != 'absent' else [],
+            'modality': 'text', 'evidence_origin': 'original', **kwargs}
 
 
 def episode(*targets, eid='e', **kwargs):
@@ -108,6 +109,37 @@ def test_diagnosis_modality_is_per_condition_not_per_round():
     assert result['CAR-V']['denominator'] == result['EDR-V']['denominator'] == result['CAR-T']['denominator'] == 1
     assert result['EDR-T']['denominator'] == 0
     assert result['VC']['score'] == pytest.approx(200/3)
+
+
+def test_diagnosis_origin_counts_and_task_macro_averages_remain_separate():
+    rows = [target('a'), target('b', actual='fail', agent='absent', modality='visual'),
+            target('c', agent='fail', modality='visual', evidence_origin='reconstructed'),
+            target('d', actual='fail', modality='visual', evidence_origin='reconstructed')]
+    first = summarize(catalogue('a', 'b', 'c', 'd'), [episode(*rows)])
+    assert first['EDR']['score'] == first['CAR']['score'] == 50
+    for metric, original, reconstructed in [('EDR', 0, 100), ('CAR', 100, 0)]:
+        groups = first[metric]['by_evidence_origin']
+        assert groups['original']['score'] == original
+        assert groups['reconstructed']['score'] == reconstructed
+        assert groups['original']['denominator'] == groups['reconstructed']['denominator'] == 1
+    assert first['CAR-T']['by_evidence_origin']['original']['denominator'] == 1
+    assert first['CAR-T']['by_evidence_origin']['reconstructed']['status'] == 'not_applicable'
+    second = summarize(catalogue('x'), [episode(target('x', actual='fail'), eid=f'e{i}') for i in range(3)])
+    # Equal task weights, not pooled opportunities; repetition and origin remain separate.
+    means = macro_average([macro_average([first, first]), macro_average([second])])
+    assert means['EDR']['by_evidence_origin']['original']['score'] == 50
+    assert means['EDR']['by_evidence_origin']['original']['opportunity_count'] == 5
+    assert means['EDR']['by_evidence_origin']['reconstructed']['score'] == 100
+    assert means['EDR']['by_evidence_origin']['reconstructed']['task_count'] == 1
+
+
+def test_diagnosis_origin_cannot_be_guessed_for_missing_metadata():
+    row = target('a')
+    del row['evidence_origin']
+    with pytest.raises(ValueError, match='evidence origin'):
+        summarize(catalogue('a'), [episode(row)])
+    with pytest.raises(ValueError, match='artifact image'):
+        summarize(catalogue('a'), [episode(target('a', evidence_origin='reconstructed'))])
 
 
 def test_repair_requires_failed_baseline_and_preservation_excludes_targets():

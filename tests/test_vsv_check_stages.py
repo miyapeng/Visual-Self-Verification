@@ -78,6 +78,7 @@ def test_metric_calls_share_identities_but_no_verdicts_and_preserve_inputs(tmp_p
     assert len(calls[2][2]['properties']['targets']['items']['properties']) == 4
     assert len(calls[3][2]['properties']['targets']['items']['properties']) == 4
     assert packet == original
+    assert assessments[0]['evidence_origin'] == 'original'
     row = {'episode_id':'e','targets':targets,'assessments':assessments,'protocol_version':PROTOCOL_VERSION,'status':'evaluated','requests':requests,
            'relation_annotation_complete':True,'repair_event_ids':[]}
     validate_saved_episode(row,tmp_path,rounds,cat)
@@ -87,6 +88,30 @@ def test_metric_calls_share_identities_but_no_verdicts_and_preserve_inputs(tmp_p
     row['targets'][0]['coverage'] = 'none'
     with pytest.raises(ValueError,match='differ'):
         validate_saved_episode(row,tmp_path,rounds,cat)
+
+
+def test_observation_modality_and_origin_follow_each_conditions_citations(tmp_path):
+    from multimodalcode.vsv_eval.check_stages import validate_observations
+    _, cat, packet, *_ = fixture(tmp_path)
+    packet['events'] += [{'ordinal':3, 'kind':'observation'}, {'ordinal':4, 'kind':'observation'}]
+    packet['core_event_ids'] += [3, 4]
+    packet['observation_cutoff'] = 4
+    packet['recorded_image_event_ids'] = [3, 4]
+    packet['image_order'] = [
+        {'role':'agent_observation', 'event_id':3, 'origin':'original'},
+        {'role':'agent_observation', 'event_id':4, 'origin':'reconstructed'},
+        {'role':'reference', 'event_id':1, 'origin':'reconstructed'}]
+    cat['checks'] = [{**cat['checks'][0], 'check_id':cid} for cid in ('a','b','c','d')]
+    raw = {'targets':[{'target_id':cid, 'actual_state':'pass', 'actual_issue':None, 'evidence_ids':ids}
+                      for cid, ids in zip(('a','b','c','d'), ([1], [1,3], [4], [3,4]))]}
+    original = copy.deepcopy((packet, raw))
+    rows = validate_observations(raw, packet, cat)['targets']
+    assert [(r['modality'], r['evidence_origin']) for r in rows] == [
+        ('text','original'), ('visual','original'), ('visual','reconstructed'), ('visual','reconstructed')]
+    assert (packet, raw) == original
+    raw['targets'][0]['evidence_origin'] = 'original'
+    with pytest.raises(ValueError, match='fields'):
+        validate_observations(raw, packet, cat)
 
 
 def test_missing_pixel_schema_preserves_text_labels_and_blocks_visual_certainty(tmp_path):

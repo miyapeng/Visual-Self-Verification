@@ -1,6 +1,6 @@
 # Run the scoring system
 
-`scripts/vsv/evaluate.py` executes protocol `evidence-diagnosis-repair-20261013`:
+`scripts/vsv/evaluate.py` executes protocol `evidence-diagnosis-repair-20261014`:
 initial implementation boundary → attempted checks and validity → independent
 observations → agent verdicts → shared version acceptance → VTR/VC/EDR/CAR/RSR/CPR.
 [The evaluation specification](self_verification_evaluation.md) defines each

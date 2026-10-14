@@ -13,7 +13,7 @@ from .episodes import extract_verification_rounds
 from .evaluation import (build_packet, evaluate_rounds, finalize_evaluation, load_rounds,
                          round_cutoffs, unassessed_repairs)
 from .judge import build_client, load_judge_config, write_model_call_report
-from .metrics import METRICS, macro_average, PROTOCOL_VERSION
+from .metrics import DIAGNOSIS_METRICS, EVIDENCE_ORIGINS, METRICS, macro_average, PROTOCOL_VERSION
 from .scope import scoped_rounds
 from .states import evaluate_states, load_repair_results
 from .preparation import load_acceptance_binding, build_transitions, prepare_case_acceptance
@@ -225,37 +225,69 @@ def display_metric(row):
 
 
 def model_averages(rows):
-    """Run means within task, then equal task means on a common completed task set."""
+    """Compare common completed tasks separately for each observation provenance."""
     from collections import defaultdict
     grouped = defaultdict(lambda: defaultdict(list))
     for row in rows:
         key = (row.get('benchmark', 'vision2web'), row.get('task_id', row['id']))
         grouped[row.get('model', '')][key].append(row)
-    complete = {model: {task for task, runs in tasks.items() if all(r['status'] == 'completed' for r in runs)}
-                for model, tasks in grouped.items()}
-    shared = set.intersection(*complete.values()) if complete else set()
-    return {model: {'task_ids': [list(t) for t in sorted(shared)],
-                    'excluded_task_ids': [list(t) for t in sorted(set(tasks) - shared)],
-                    'metrics': macro_average([macro_average([r['metrics'] for r in tasks[t]]) for t in sorted(shared)])}
+    result = {}
+    for mode in sorted({row.get('evidence_mode', 'original') for row in rows}):
+        if mode not in {'original', 'reconstructed_observations'}:
+            raise ValueError(f'Unsupported comparison evidence mode: {mode}')
+        complete = {model: {task for task, runs in tasks.items() if all(
+            r['status'] == 'completed' and r.get('evidence_mode', 'original') == mode for r in runs)}
             for model, tasks in grouped.items()}
+        shared = set.intersection(*complete.values()) if complete else set()
+        result[mode] = {model: {'task_ids': [list(t) for t in sorted(shared)],
+                               'excluded_task_ids': [list(t) for t in sorted(set(tasks) - shared)],
+                               'metrics': macro_average([macro_average([r['metrics'] for r in tasks[t]])
+                                                         for t in sorted(shared)])}
+                       for model, tasks in grouped.items()}
+    return result
 
 
 def write_summary(rows, output):
     averages = model_averages(rows)
     write_json(output / 'summary.json', {'protocol_version': PROTOCOL_VERSION, 'cases': rows,
                                         'model_macro_averages': averages})
-    columns = ('id', 'benchmark', 'model', 'status', *METRICS, 'EDR-V', 'EDR-T', 'CAR-V', 'CAR-T')
-    flat = [{**{k: r.get(k, '') for k in columns[:4]},
-             **{k: display_metric(r.get('metrics', {}).get(k)) for k in columns[4:]}} for r in rows]
+    identity = ('id', 'benchmark', 'model', 'status', 'evidence_mode')
+    columns = (*identity, *METRICS, *DIAGNOSIS_METRICS[2:])
+    flat = [{**{k: r.get(k, 'original' if k == 'evidence_mode' else '') for k in identity},
+             **{k: display_metric(r.get('metrics', {}).get(k)) for k in columns[len(identity):]}} for r in rows]
     with (output / 'comparison.csv').open('w', newline='') as handle:
         writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader()
         writer.writerows(flat)
     lines = ['# Evaluation results', '',
              'Point estimates use explicit opportunity counts in summary.json. No opportunity is not a failure.',
-             'Incomplete runs are excluded from the common task set for model comparison.', '',
+             'Model averages use common completed tasks separately for original and reconstructed observations.',
+             'A task must use the same evidence mode across models and repetitions to enter that comparison.',
+             'Reconstructed-observation scores are conditional on replayed states, not verified historical pixels.',
+             'Case-level EDR/CAR below include all supplied evidence; the origin breakdown follows.', '',
              '| ' + ' | '.join(columns) + ' |', '| ' + ' | '.join(['---'] * len(columns)) + ' |']
     lines += ['| ' + ' | '.join(str(r[k]).replace('|', '\\|') for k in columns) + ' |' for r in flat]
+    lines += ['', '## Diagnosis by cited evidence origin', '',
+              'Original includes recorded text and original artifact images. Any cited reconstructed image places a judgment in the reconstructed group.',
+              'Values show percent (opportunities); empty groups remain not applicable.', '',
+              '| Case | Evidence origin | ' + ' | '.join(DIAGNOSIS_METRICS) + ' |',
+              '|---|---|' + '---:|' * len(DIAGNOSIS_METRICS)]
+    for row in rows:
+        if 'metrics' not in row:
+            continue
+        for origin in EVIDENCE_ORIGINS:
+            cells = []
+            for metric in DIAGNOSIS_METRICS:
+                group = row['metrics'][metric]['by_evidence_origin'][origin]
+                cells.append(f"{display_metric(group)} ({group['denominator']})")
+            lines.append('| ' + ' | '.join([row['id'], origin, *cells]) + ' |')
+    for mode, models in averages.items():
+        lines += ['', f'## Model averages: {mode}', '',
+                  '| Model | Common tasks | ' + ' | '.join(METRICS) + ' |',
+                  '|---|---:|' + '---:|' * len(METRICS)]
+        for model, summary in models.items():
+            lines.append('| ' + ' | '.join([model, str(len(summary['task_ids'])),
+                *(display_metric(summary['metrics'][metric]) for metric in METRICS)]) + ' |')
     for row in rows:
         for issue in row.get('issues', []):
             lines += ['', f"- {row['id']}: {issue}"]
@@ -321,7 +353,8 @@ def run_experiment(manifest, output, *, check_only=False):
         except Exception as exc:
             result = failure_record(exc)
         row = {'id': case['id'], 'benchmark': case.get('benchmark', 'vision2web'), 'model': case.get('model', ''),
-               'task_id': case.get('task_id', Path(case['task_root']).resolve().name), **result}
+               'task_id': case.get('task_id', Path(case['task_root']).resolve().name),
+               'evidence_mode': 'reconstructed_observations' if case.get('reconstructed_images') else 'original', **result}
         rows.append(row)
         write_json(directory / 'status.json', row)
         print(f"{case['id']}: preflight {row['status']}", flush=True)
@@ -340,7 +373,8 @@ def run_experiment(manifest, output, *, check_only=False):
             except Exception as exc:
                 result = failure_record(exc)
             rows[index] = {'id': case['id'], 'benchmark': case.get('benchmark', 'vision2web'), 'model': case.get('model', ''),
-               'task_id': case.get('task_id', Path(case['task_root']).resolve().name), **result}
+               'task_id': case.get('task_id', Path(case['task_root']).resolve().name),
+               'evidence_mode': row['evidence_mode'], **result}
             write_json(directory / 'status.json', rows[index])
             write_summary(rows, output)
             print(f"{case['id']}: {result['status']}", flush=True)

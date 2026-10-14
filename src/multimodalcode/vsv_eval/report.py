@@ -91,27 +91,37 @@ th{{background:#f4f6fa;text-align:left}}code,pre{{background:#f4f6fa}}pre{{paddi
 
 def write_protocol_report(result, path):
     """Point scores and their original evidence references."""
-    from .metrics import diagnosis_correct
+    from .metrics import DIAGNOSIS_METRICS, EVIDENCE_ORIGINS, diagnosis_correct
     def value(row):
         return f"{row['score']:.2f}" if row['score'] is not None else row['status']
     lines = ['# Self-verification evaluation', '',
              f"Case: `{result['case_id']}`. Protocol: `{result['protocol_version']}`.",
              f"Source: `{result['source_rounds']}`. Catalogue: `{result['catalogue']}`.",
+             f"Evidence mode: `{result.get('evidence_mode', 'original')}`.",
              'Semantic labels are model judgments; correctness calibration is reported separately.', '',
              '| Metric | Percent | Success | Failure | Opportunities | Unassessed |',
              '|---|---:|---:|---:|---:|---:|']
     for name, row in result['metrics'].items():
         lines.append(f"| {name} | {value(row)} | {row['success_count']} | {row['failure_count']} | "
                      f"{row['denominator']} | {row['unassessed_count']} |")
+    lines += ['', 'The totals above use all supplied evidence. Diagnosis scores are separated by cited evidence origin below.',
+              'Reconstructed-image judgments are conditional on replayed states; historical equivalence is unverified.', '',
+              '| Metric | Evidence origin | Percent | Success | Failure | Opportunities | Unassessed |',
+              '|---|---|---:|---:|---:|---:|---:|']
+    for name in DIAGNOSIS_METRICS:
+        for origin in EVIDENCE_ORIGINS:
+            row = result['metrics'][name]['by_evidence_origin'][origin]
+            lines.append(f"| {name} | {origin} | {value(row)} | {row['success_count']} | {row['failure_count']} | "
+                         f"{row['denominator']} | {row['unassessed_count']} |")
     lines += ['', 'No opportunity is N/A. Infrastructure or missing acceptance evidence leaves the evaluation incomplete.',
               'Coverage counts valid full checks once per requirement. Partial checks receive no fractional credit.',
               'EDR/CAR include missing judgments on decidable observations. Unobserved conditions affect coverage, not diagnosis.',
               'RSR requires a failing baseline. CPR includes passing non-target conditions from the same transitions.', '',
-              '| Round | Requirement | Modality | Observed | Agent | Correct | Evidence IDs | Judgment IDs |',
-              '|---|---|---|---|---|---|---|---|']
+              '| Round | Requirement | Modality | Evidence origin | Observed | Agent | Correct | Evidence IDs | Judgment IDs |',
+              '|---|---|---|---|---|---|---|---|---|']
     for episode in result['episodes']:
         for t in episode.get('assessments', []):
-            values = [episode['episode_id'], t['check_id'], t['modality'], t['actual_state'], t['agent_state'],
+            values = [episode['episode_id'], t['check_id'], t['modality'], t['evidence_origin'], t['actual_state'], t['agent_state'],
                       diagnosis_correct(t['actual_state'], t['agent_state'], t['issue_match']),
                       t['evidence_ids'], t['diagnosis_ids']]
             lines.append('| ' + ' | '.join(str(v).replace('|', '\\|') for v in values) + ' |')

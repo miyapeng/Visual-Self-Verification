@@ -66,6 +66,16 @@ def test_missing_images_block_before_scoring(tmp_path):
     assert any('images at events: 2' in issue for issue in result['issues'])
 
 
+def test_blocked_reconstruction_is_not_reported_as_original_evidence(tmp_path):
+    manifest, _, _ = inputs(tmp_path)
+    manifest['cases'][0]['reconstructed_images'] = 'missing-index.json'
+    write_json(tmp_path/'experiment.json', manifest)
+    assert system.run_experiment(tmp_path/'experiment.json', tmp_path/'out', check_only=True) == 2
+    saved = read_json(tmp_path/'out/summary.json')
+    assert saved['cases'][0]['evidence_mode'] == 'reconstructed_observations'
+    assert set(saved['model_macro_averages']) == {'reconstructed_observations'}
+
+
 def test_execution_orders_checks_states_join_and_keeps_scores(tmp_path, monkeypatch):
     _, rounds, catalogue = inputs(tmp_path)
     calls = []
@@ -73,7 +83,7 @@ def test_execution_orders_checks_states_join_and_keeps_scores(tmp_path, monkeypa
     case = {**config['cases'][0], 'state_spec': 'prepared.json'}
     target = {'check_id': 'page', 'target_id': 't1', 'coverage': 'full', 'method_ok': True,
               'evidence_ok': True, 'actual_state': 'pass', 'agent_state': 'pass',
-              'issue_match': None, 'modality': 'text'}
+              'issue_match': None, 'modality': 'text', 'evidence_origin': 'original'}
     episodes = [{'episode_id': 'e1', 'status': 'evaluated', 'targets': [target], 'assessments': [target],
                  'repair_event_ids': [], 'relation_annotation_complete': True}]
     result = {'status': 'evaluated', 'episodes': episodes, 'repair_gaps': [],
@@ -145,16 +155,46 @@ def test_comparison_exports_six_rates_and_equal_task_model_means(tmp_path):
                                                ('a','other',True),('b','other',False)])]
     system.write_summary(rows,tmp_path)
     saved=read_json(tmp_path/'summary.json')
-    assert saved['model_macro_averages']['model']['metrics']['VC']['score']==75
-    assert saved['model_macro_averages']['other']['metrics']['VC']['score']==50
+    assert saved['model_macro_averages']['original']['model']['metrics']['VC']['score']==75
+    assert saved['model_macro_averages']['original']['other']['metrics']['VC']['score']==50
     with (tmp_path/'comparison.csv').open() as handle:
         row=next(csv.DictReader(handle))
     assert all(m in row for m in system.METRICS)
     assert 'CV' not in row and 'VCS' not in row
+    assert row['evidence_mode'] == 'original'
     rows[-1]['status']='failed'
     means=system.model_averages(rows)
-    assert means['model']['metrics']['VC']['score']==50
-    assert means['model']['task_ids']==[['vision2web','a']]
+    assert means['original']['model']['metrics']['VC']['score']==50
+    assert means['original']['model']['task_ids']==[['vision2web','a']]
+
+
+def test_model_comparisons_do_not_pool_original_and_reconstructed_runs(tmp_path):
+    def row(model, task, mode, passed):
+        metrics = summarize({'checks':[{'check_id':'a'}]}, [{'status':'evaluated', 'targets':[
+            {'check_id':'a','coverage':'full' if passed else 'none','method_ok':True,'evidence_ok':True}],
+            'assessments':[]}], scope={'initial_implementation_event_id':0})
+        return {'id':f'{model}-{task}', 'task_id':task, 'model':model, 'status':'completed',
+                'evidence_mode':mode, 'metrics':metrics}
+    original, replay = 'original', 'reconstructed_observations'
+    rows = [row(model, 'original-task', original, True) for model in ('a','b')]
+    rows += [row(model, 'replay-task', replay, False) for model in ('a','b')]
+    rows += [row('a','mismatched',original,True), row('b','mismatched',replay,True)]
+    system.write_summary(rows, tmp_path)
+    means = read_json(tmp_path/'summary.json')['model_macro_averages']
+    for model in ('a','b'):
+        assert means[original][model]['task_ids'] == [['vision2web','original-task']]
+        assert means[replay][model]['task_ids'] == [['vision2web','replay-task']]
+        assert means[original][model]['metrics']['VC']['score'] == 100
+        assert means[replay][model]['metrics']['VC']['score'] == 0
+        assert ['vision2web','mismatched'] in means[original][model]['excluded_task_ids']
+    report = (tmp_path/'comparison.md').read_text()
+    assert 'Model averages: original' in report and 'Model averages: reconstructed_observations' in report
+    assert 'Diagnosis by cited evidence origin' in report
+    # Do not select just the convenient repetitions of a task.
+    rows.append(row('a', 'original-task', replay, False))
+    assert system.model_averages(rows)[original]['a']['task_ids'] == []
+    with pytest.raises(ValueError, match='evidence mode'):
+        system.model_averages([row('a', 'proxy-task', 'text_proxy', True)])
 
 
 def test_manifest_rejects_case_collisions_and_conflicting_sources(tmp_path):

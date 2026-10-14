@@ -3,6 +3,7 @@
 Research code for evaluating how coding agents inspect their own outputs,
 judge the evidence, make repairs and check the result. The shared evaluator
 reports VTR, VC, EDR, CAR, RSR and CPR with source evidence and model-call records.
+The current diagnostic study uses Vision2Web and SWE-bench Multimodal.
 See [the evaluation specification](docs/self_verification_evaluation.md) for the
 current definitions and independent evidence workflow.
 
@@ -47,8 +48,9 @@ mappings and [the command index](scripts/README.md) for entry points.
 
 ## Evaluate trajectories
 
-The shared workflow has adapters for Vision2Web, SWE-bench Multimodal,
-3DCodeBench and GameDevBench. Usable evidence and runtime support determine
+The active study uses Vision2Web for web development and SWE-bench Multimodal
+for visual software repair. Existing 3DCodeBench and GameDevBench adapters are
+retained outside this study. Usable evidence and runtime support determine
 which stages can execute; adapter availability does not imply a reproduced
 benchmark score. [The adapter guide](docs/VSV_BENCHMARKS.md) documents the
 requirements and current limits.

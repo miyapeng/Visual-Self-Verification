@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 
-PROTOCOL_VERSION = "evidence-diagnosis-repair-20261013"
+PROTOCOL_VERSION = "evidence-diagnosis-repair-20261014"
 METRICS = ("VTR", "VC", "EDR", "CAR", "RSR", "CPR")
+DIAGNOSIS_METRICS = ("EDR", "CAR", "EDR-V", "EDR-T", "CAR-V", "CAR-T")
+EVIDENCE_ORIGINS = ("original", "reconstructed")
 
 
 def check_validity(method_ok, evidence_ok):
@@ -70,9 +72,10 @@ def rate(values, *, unavailable=0):
             "status": "incomplete" if unavailable else "scored" if denominator else "not_applicable"}
 
 
-def diagnosis_rate(assessments, state):
+def diagnosis_rate(assessments, state, *, pending=0):
     rows = [t for t in assessments if t['actual_state'] == state]
-    result = rate(diagnosis_correct(t['actual_state'], t['agent_state'], t['issue_match']) for t in rows)
+    result = rate((diagnosis_correct(t['actual_state'], t['agent_state'], t['issue_match']) for t in rows),
+                  unavailable=pending)
     result.update(missing_judgment_count=sum(t['agent_state'] == 'absent' for t in rows),
                   inconclusive_judgment_count=sum(t['agent_state'] == 'uncertain' for t in rows))
     return result
@@ -90,6 +93,10 @@ def summarize(catalogue, episodes, repairs=(), repair_gaps=(), *, scope=None):
     assessments = [t for e in episodes for t in e.get('assessments', [])]
     if any(t['actual_state'] not in {'pass', 'fail'} for t in assessments):
         raise ValueError('Diagnosis opportunities must be independently decidable')
+    if any(t.get('evidence_origin') not in EVIDENCE_ORIGINS for t in assessments):
+        raise ValueError('Diagnosis opportunities require evidence origin from their cited observations')
+    if any(t['evidence_origin'] == 'reconstructed' and t['modality'] != 'visual' for t in assessments):
+        raise ValueError('Reconstructed diagnosis evidence must cite an artifact image')
     pending = sum(e['status'] == 'pending' for e in episodes)
     coverage = {}
     for goal in goals:
@@ -176,30 +183,32 @@ def summarize(catalogue, episodes, repairs=(), repair_gaps=(), *, scope=None):
     rsr = {**rate(repaired, unavailable=len(repair_gaps)), 'excluded_baseline_pass_count': excluded}
     cpr = {**rate(preserved, unavailable=len(repair_gaps)),
            'joint_outcomes': joint, 'transitions': transitions}
-    result = {'VTR': vtr, 'VC': vc,
-              'EDR': diagnosis_rate(assessments, 'fail'), 'CAR': diagnosis_rate(assessments, 'pass'),
-              'RSR': rsr, 'CPR': cpr}
+    result = {'VTR': vtr, 'VC': vc, 'RSR': rsr, 'CPR': cpr}
     for metric, state in (('EDR', 'fail'), ('CAR', 'pass')):
-        result[metric]['unassessed_count'] += pending
-        if pending:
-            result[metric].update(score=None, status='incomplete')
-        for suffix, modality in (('V', 'visual'), ('T', 'text')):
-            result[f'{metric}-{suffix}'] = diagnosis_rate([t for t in assessments if t['modality'] == modality], state)
-            if pending:
-                result[f'{metric}-{suffix}'].update(score=None, status='incomplete', unassessed_count=pending)
-    return result
+        for name, modality in ((metric, None), (f'{metric}-V', 'visual'), (f'{metric}-T', 'text')):
+            rows = [t for t in assessments if modality is None or t['modality'] == modality]
+            result[name] = diagnosis_rate(rows, state, pending=pending)
+            result[name]['by_evidence_origin'] = {
+                origin: diagnosis_rate([t for t in rows if t['evidence_origin'] == origin], state, pending=pending)
+                for origin in EVIDENCE_ORIGINS}
+    return {name: result[name] for name in (*METRICS, *DIAGNOSIS_METRICS[2:])}
 
 
 def macro_average(tasks):
     """Equal task weights, retaining support and incomplete-evaluation counts."""
-    result = {}
-    for metric in (*METRICS, 'EDR-V', 'EDR-T', 'CAR-V', 'CAR-T'):
-        rows = [task[metric] for task in tasks]
+    def mean(rows):
         scores = [r['score'] for r in rows if r['score'] is not None]
         unavailable = sum(r.get('unassessed_count', 0) for r in rows)
-        result[metric] = {'score': sum(scores) / len(scores) if scores and not unavailable else None,
-                          'task_count': len(scores), 'na_task_count': sum(r['status'] == 'not_applicable' for r in rows),
-                          'opportunity_count': sum(r.get('denominator', r.get('opportunity_count', 0)) for r in rows),
-                          'unassessed_count': unavailable,
-                          'status': 'incomplete' if unavailable else 'scored' if scores else 'not_applicable'}
+        return {'score': sum(scores) / len(scores) if scores and not unavailable else None,
+                'task_count': len(scores), 'na_task_count': sum(r['status'] == 'not_applicable' for r in rows),
+                'opportunity_count': sum(r.get('denominator', r.get('opportunity_count', 0)) for r in rows),
+                'unassessed_count': unavailable,
+                'status': 'incomplete' if unavailable else 'scored' if scores else 'not_applicable'}
+    result = {}
+    for metric in (*METRICS, *DIAGNOSIS_METRICS[2:]):
+        rows = [task[metric] for task in tasks]
+        result[metric] = mean(rows)
+        if metric in DIAGNOSIS_METRICS:
+            result[metric]['by_evidence_origin'] = {
+                origin: mean([r['by_evidence_origin'][origin] for r in rows]) for origin in EVIDENCE_ORIGINS}
     return result

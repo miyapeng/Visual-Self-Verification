@@ -141,7 +141,8 @@ def build_packet(rounds, episode, cutoff, task, catalogue, reference_ids, output
             path = _resolve_image(raw, Path(rounds['source_run'])) if raw else None
             recorded_image_ids.append(row['ordinal'])
             label = {'role': 'agent_observation', 'event_id': row['ordinal'],
-                     'url_context': row.get('browser_url_context'), **states.get(row['ordinal'], {})}
+                     'url_context': row.get('browser_url_context'), **states.get(row['ordinal'], {}),
+                     'origin': 'original'}
             reconstructed = (reconstructed_images or {}).get(row['ordinal']) if not path else None
             if reconstructed:
                 path = reconstructed['path']

@@ -203,6 +203,8 @@ def test_proxy_augmentation_keeps_known_strict_labels_and_only_fills_gaps(tmp_pa
     assert filled['coverage'] == 'full' and filled['method_ok'] is True and filled['actual_state'] == 'fail'
     assert result['metrics']['EDR']['score'] == 100
     assert result['metrics']['CAR']['score'] == 0
+    assert result['evidence_mode'] == 'text_proxy'
+    assert 'by_evidence_origin' not in result['metrics']['EDR']
     assert (baseline/'scores.json').read_bytes() == before
 
 

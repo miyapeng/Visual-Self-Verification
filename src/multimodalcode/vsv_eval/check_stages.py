@@ -278,6 +278,8 @@ def validate_observations(value, packet, catalogue):
     ids = {str(eid): eid for eid in events}
     facts = {f['check_id']: f for f in packet['rule_facts']}
     pixels = {i['event_id'] for i in packet['image_order'] if i['role'] == 'agent_observation'}
+    reconstructed = {i['event_id'] for i in packet['image_order']
+                     if i['role'] == 'agent_observation' and i.get('origin') == 'reconstructed'}
     rows, seen = [], set()
     for raw in value['targets']:
         if not isinstance(raw, dict) or set(raw) != {'target_id', 'actual_state', 'actual_issue', 'evidence_ids'}:
@@ -308,7 +310,8 @@ def validate_observations(value, packet, catalogue):
         if visual and not pixels.intersection(evidence).intersection(packet['core_event_ids']):
             raise ValueError('Visual truth requires attached agent pixels from this round')
         rows.append({**raw, 'evidence_ids': evidence, 'check_id': cid,
-                     'target': goals[cid]['criterion'], 'modality': 'visual' if visual else 'text'})
+                     'target': goals[cid]['criterion'], 'modality': 'visual' if visual else 'text',
+                     'evidence_origin': 'reconstructed' if reconstructed.intersection(evidence) else 'original'})
     if seen != set(goals):
         raise ValueError('Independent observation audit omitted catalogue conditions')
     return {'targets': rows, 'not_observable_ids': [cid for cid in goals if cid not in {r['target_id'] for r in rows}]}

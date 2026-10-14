@@ -150,6 +150,12 @@ def test_reconstructed_packets_preserve_events_and_observation_cutoffs(tmp_path)
     assert rounds == original and all(e['ordinal'] <= 4 for e in packet['events'])
     strict, images = build_packet(rounds, episode, 4, 'task', catalogue, [], tmp_path)
     assert not images and strict['missing_images'] and 'evidence_policy' not in strict
+    # An available original takes precedence over its replay substitute.
+    original_path = tmp_path/'original.png'; Image.new('RGB', (2,2), 'red').save(original_path)
+    events[2]['images'] = [{'path':str(original_path)}]
+    packet, _ = build_packet(rounds, episode, 4, 'task', catalogue, [], tmp_path,
+                              reconstructed_images=mapping)
+    assert {i['origin'] for i in packet['image_order']} == {'original'}
 
 
 def test_worker_keeps_overwritten_images_and_capture_versions(tmp_path, monkeypatch):
