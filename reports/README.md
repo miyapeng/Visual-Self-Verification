@@ -1,7 +1,7 @@
 # Current research entry points
 
 Current protocol: [Evidence, diagnosis and repair](../docs/self_verification_evaluation.md)
-(`evidence-diagnosis-repair-20261013`). The six metrics are VTR, VC, EDR, CAR, RSR
+(`evidence-diagnosis-repair-20261014`). The six metrics are VTR, VC, EDR, CAR, RSR
 and CPR. Coverage requires valid evidence, diagnosis opportunities come from a
 blind observation audit, and repair/preservation share version acceptance labels.
 See the [implementation and validation report](vsv_protocol_20261013.md) and
@@ -9,6 +9,8 @@ See the [implementation and validation report](vsv_protocol_20261013.md) and
 revision; archived scores require fresh judgments before comparison.
 
 Runtime setup and real trajectory probes: [2026-10-08 validation](vsv_runtime_validation_20261008.md).
+
+Model selection and available trajectories: [2026-10-14 cohort audit](vsv_model_cohort_20261014.md).
 
 Training integration and CPU checks: [ms-swift and verl integration](training_integration_20261009.md).
 
