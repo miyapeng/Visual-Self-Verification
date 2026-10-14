@@ -7,6 +7,10 @@ The current diagnostic study uses Vision2Web and SWE-bench Multimodal.
 See [the evaluation specification](docs/self_verification_evaluation.md) for the
 current definitions and independent evidence workflow.
 
+For a new cluster or AI session, read the
+[project handoff](docs/PROJECT_HANDOFF.md): research decisions, model cohort,
+data locations and source links, migration steps, and remaining work.
+
 Start with the [evaluation guide](docs/VSV_SYSTEM.md),
 [benchmark adapters](docs/VSV_BENCHMARKS.md) and
 [research reports](reports/README.md).
@@ -14,6 +18,8 @@ Start with the [evaluation guide](docs/VSV_SYSTEM.md),
 The [training guide](docs/VSV_TRAINING.md) describes prefix-conditioned teacher
 distillation with ms-swift and verification GRPO with verl. CPU integration has
 been checked; distributed GPU training and improvements remain unvalidated.
+The latest paper proposes complete continuations from fixed student prefixes;
+the existing training integration still needs the changes listed in the handoff.
 
 ## Layout
 
