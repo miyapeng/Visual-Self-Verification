@@ -4,6 +4,10 @@ Recorded on **2026-10-14** from the local code, paper, reports, data inventories
 and the research discussion. This is the starting point for a new collaborator
 or AI session. It preserves decisions and evidence locations rather than the
 full chat. Paths below are relative to the code repository unless stated otherwise.
+**Training-design update: 2026-10-15.** Section 5 reflects the new segment-local
+feedback proposal; the dated data inventories and validation results remain unchanged.
+Paper revision: [`7a631ff`](https://github.com/miyapeng/Visual_Self_Verification/commit/7a631ff).
+Both `paper.tex` and `main.tex` compiled successfully after this writing update.
 
 ## 1. Start here
 
@@ -283,10 +287,27 @@ current student between collection/optimization rounds.
   student prefix, tool returns, and image observations remain conditioning inputs.
 - **GRPO:** sample complete continuations from independent restorations of the
   same prefix/checkpoint and budget. The policy chooses its checks and edits.
-  Event rewards use unique valid coverage, supported diagnoses, penalties for
-  incorrect judgments, and signed acceptance changes for improvement/regression,
-  combined with the final task outcome. Use process advantages with the standard
-  clipped policy objective on generated suffix assistant tokens, including KL masks.
+  Normalize final task scores within the shared-prefix group to obtain
+  `A_task`. Add signed evaluator feedback only to the generated tokens belonging
+  to the corresponding local segment: **`A_hat = A_task + lambda * A_ver`**.
+  Use this fixed coefficient in the standard clipped policy objective, with
+  suffix-only assistant and KL masks. No value model is introduced; `lambda`
+  is the only additional mixing parameter, and zero recovers task-only GRPO.
+- **Local feedback:** annotate evidence acquisition, interpretation, and revision
+  segments after sampling the complete suffix. Core token sets do not overlap;
+  inseparable mixed messages receive one composite score. Episode counts can
+  differ or be zero, with no cross-trajectory segment alignment. Feedback is
+  bounded in `[-1,1]`, with evaluator-defined condition scope and deduplication.
+  Informative checks and supported judgments are positive, unsuitable checks
+  and contradicted judgments negative, and redundant evidence or missing
+  conclusions neutral. Each repair compares its own actual before/after versions:
+  new recovery credit minus a unit penalty for any new regression. The paper's
+  appendix specifies how repeated repairs and self-introduced regressions are handled.
+- Local scores are **not centered across segments or accumulated backward**.
+  The October 14 normalized subsequent-event-reward proposal is superseded.
+  Local feedback can remain informative when final task scores tie. It is a
+  process-supervision coefficient, not a value-based advantage estimate, and
+  does not guarantee a positive combined update for every correct segment.
 - Do not prescribe separate evidence/diagnosis/repair rollout quotas or change
   the actor loss to a sum of per-stage training objectives. The latest design
   replaced that earlier proposal. Do not sum the six benchmark percentages as
@@ -304,11 +325,17 @@ and message-level teacher filtering. Aligning it with the latest paper requires:
 1. Initial-implementation prefix collection and whole-continuation teacher filtering.
 2. Complete suffix rollouts grouped by prefix/checkpoint, refreshed from the student.
 3. Native multimodal context plus suffix-only response and KL masks.
-4. Event rewards attached to actual generated-token positions and a process-GRPO
-   advantage implementation. Feeding token rewards to an outcome-GRPO path that
-   sums them first does not implement process supervision.
+4. Nonoverlapping segment assignments to native generated tokens, then addition
+   of local feedback to the standard task-outcome advantage tensor. Do not feed
+   local scores through the outcome-GRPO reward sum or recenter the combined tensor.
 5. Validation of the real Qwen processor/template, behavior log probabilities,
    masks, reward accounting, and an actual GPU optimizer update.
+
+The October 15 change is a writing revision, not a training-code implementation
+or measured result. It preserves the SFT loss and GRPO clipped loss while
+replacing the old cumulative `C/D/Q` reward accounting. The paper records the
+token-weighting effect of segment length and plans a control that broadcasts
+the same mean local feedback across the suffix to test attribution.
 
 Code: `src/multimodalcode/training/{handoff,environment,collector,reward,verl_integration,cli}.py`.
 Commands: `scripts/training/{prepare.py,check_upstream.py,smoke.py,train_sft.sh,train_rl.sh}`.
